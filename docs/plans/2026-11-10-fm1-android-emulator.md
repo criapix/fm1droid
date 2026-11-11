@@ -39,7 +39,7 @@
 1. **O código Rust/Kotlin deste plano não foi compilado** (a máquina de planejamento não tinha Rust nem NDK). As assinaturas do `fm1-emu` foram conferidas no código-fonte, mas espere pequenos ajustes de compilação. Em caso de divergência, a fonte da verdade é o código em `vendor/fm1-emu`.
 2. **Desempenho no celular é desconhecido.** O fm1-emu roda o clock real de 240 MHz com JIT em Mac/PC; em celular ninguém mediu. Portão na Task 9: medir `speed` (tempo emulado / tempo gasto). Abaixo de 1,3× no clock escolhido, baixar o clock padrão (opções 60–240 MHz) antes de seguir.
 3. **JIT no Android**: `fm1-core/src/jit.rs` tem `cfg(target_os = "android")` e usa `mmap` anônimo RWX. Não há registro de teste em Android. Portão na Task 9: se o processo morrer por SELinux/`mmap`, bootar com `cpu.jit_on = false` e clock menor, e registrar o achado em `docs/NOTES.md`.
-4. **Caminho do repositório**: o diretório atual tem espaço no nome e fica dentro do OneDrive. Builds de NDK/Gradle/Cargo ali são lentos e sujeitos a travas de arquivo. A Task 1 move o trabalho para `C:\dev\fm1droid`.
+4. **Caminho do repositório**: o diretório atual tem espaço no nome e fica dentro do OneDrive. Builds de NDK/Gradle/Cargo ali são lentos e sujeitos a travas de arquivo. A Task 1 move o trabalho para `C:\dev\fm1droid`. **Atualização (2026-11-11): o projeto foi movido de volta para este diretório (`C:\Users\criap\OneDrive\Documentos\Github\mvave fm1`) a pedido do usuário; todo `C:\dev\fm1droid` neste plano é o caminho histórico e hoje significa a raiz deste repositório.**
 5. **Sem hardware para comparar**: a fidelidade é a do fm1-emu. Não tente "corrigir" comportamento de firmware no nosso código.
 
 ### 0.4 Estrutura final do repositório
