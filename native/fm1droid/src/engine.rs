@@ -64,6 +64,16 @@ struct Machine {
     flash0: Vec<u8>,
 }
 
+/// Check a package without booting it: the firmware's identity, or why it is refused.
+pub fn probe(pkg: &[u8]) -> Result<String, String> {
+    let st = std::panic::catch_unwind(|| fm1_soc::stock_from_package(pkg, None))
+        .map_err(|_| "malformed firmware package".to_owned())??;
+    if st.board != Board::Fm1 {
+        return Err("this package is for another device (SMK-37), not the FM-1".into());
+    }
+    Ok(st.identity.to_string())
+}
+
 /// Write whole sectors to the flash and to the memory-mapped (XIP) view of it.
 fn write_sector(soc: &mut Soc, at: usize, data: &[u8]) {
     soc.flash.mem[at..at + data.len()].copy_from_slice(data);
@@ -134,6 +144,7 @@ pub fn run(shared: Arc<Shared>, cmds: mpsc::Receiver<Cmd>, mut out: rtrb::Produc
                         last_rec.clear();
                         let mut v = shared.view.lock().unwrap();
                         (v.booted, v.halted, v.speed) = (true, false, 0.0);
+                        v.flash.clear(); // the previous firmware's sectors must not leak into this one's save
                         (speed_t, speed_ms, busy) = (Instant::now(), 0, Duration::ZERO);
                     });
                     let _ = reply.send(result);
@@ -241,6 +252,12 @@ mod tests {
         assert!(boot(&tx, vec![1, 2, 3], vec![]).is_err());
         assert!(!shared.view.lock().unwrap().booted);
         assert!(boot(&tx, vec![0; 100_000], vec![]).is_err());
+    }
+
+    #[test]
+    fn probe_accepts_a_real_package_and_refuses_garbage() {
+        assert!(probe(&felucca()).is_ok());
+        assert!(probe(&[0; 64]).is_err());
     }
 
     #[test]

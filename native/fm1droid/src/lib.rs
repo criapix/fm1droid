@@ -4,6 +4,17 @@
 #[path = "../../../vendor/fm1-emu/crates/fm1-live/src/panel.rs"]
 mod panel;
 
+pub mod app;
+pub mod engine;
+pub mod flashrec;
+pub mod resample;
+pub mod ui;
+
+#[cfg(target_os = "android")]
+mod aaudio;
+#[cfg(target_os = "android")]
+mod jni_api;
+
 #[cfg(test)]
 mod smoke {
     #[test]
@@ -13,7 +24,3 @@ mod smoke {
         assert_eq!(fm1_soc::FLASH_SIZE % 4096, 0);
     }
 }
-
-pub mod resample;
-pub mod flashrec;
-pub mod engine;

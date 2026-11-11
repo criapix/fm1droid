@@ -1,0 +1,32 @@
+package com.criapix.fm1droid
+
+import java.nio.ByteBuffer
+
+/** JNI surface of libfm1droid.so (native/fm1droid/src/jni_api.rs). */
+object Native {
+  init { System.loadLibrary("fm1droid") }
+
+  /** null on success, the reason otherwise. */
+  external fun boot(pkg: ByteArray, saved: ByteArray, syx: ByteArray, mhz: Int): String?
+  /** "ok:<identity>" or "err:<reason>". */
+  external fun probe(pkg: ByteArray): String
+  external fun audioStart(): Int
+  external fun audioStop()
+  external fun audioLost(): Boolean
+  external fun speed(): Float
+  external fun starved(): Long
+  /** bit 0: booted, bit 1: halted */
+  external fun status(): Int
+  external fun flashRev(): Int
+  external fun flashSnapshot(): ByteArray?
+  external fun setLead(frames: Int)
+
+  external fun key(id: Int, down: Boolean, vel: Int)
+  external fun enc(i: Int, clicks: Int)
+  external fun pot(v: Int)
+  external fun midi(data: ByteArray, off: Int, len: Int)
+  external fun hit(x: Float, y: Float): Int
+  external fun keyVel(id: Int, y: Float): Int
+  /** True when the buffer was rewritten, false when nothing changed. */
+  external fun draw(buf: ByteBuffer): Boolean
+}
