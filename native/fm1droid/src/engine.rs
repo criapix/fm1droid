@@ -4,7 +4,7 @@
 use crate::flashrec;
 use fm1_core::{Bus, Cpu};
 use fm1_soc::{machine, Action, Board, Soc};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -40,6 +40,8 @@ pub struct Shared {
     pub view: Mutex<View>,
     /// frames the audio callback found missing
     pub starved: AtomicU64,
+    /// the least the audio callback found in the ring since someone last asked (u32::MAX = no callback yet)
+    pub fill_min: AtomicU32,
 }
 
 impl Shared {
@@ -50,6 +52,7 @@ impl Shared {
                 speed: 0.0, flash: Vec::new(), flash_rev: 0,
             }),
             starved: AtomicU64::new(0),
+            fill_min: AtomicU32::new(u32::MAX),
         }
     }
 }
@@ -129,7 +132,23 @@ impl Machine {
     }
 }
 
+/// The engine feeds the audio callback: it gets the priority Android gives audio threads.
+#[cfg(target_os = "android")]
+fn raise_priority() {
+    extern "C" {
+        fn setpriority(which: i32, who: u32, prio: i32) -> i32;
+    }
+    // PRIO_PROCESS (0) with who = 0 is the calling thread on Linux; -19 is THREAD_PRIORITY_URGENT_AUDIO
+    unsafe {
+        setpriority(0, 0, -19);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn raise_priority() {}
+
 pub fn run(shared: Arc<Shared>, cmds: mpsc::Receiver<Cmd>, mut out: rtrb::Producer<[f32; 2]>) {
+    raise_priority();
     let mut m: Option<Machine> = None;
     let (mut lead, mut paused) = (768usize, false);
     let (mut last_view, mut last_flash) = (Instant::now(), Instant::now());
@@ -154,7 +173,7 @@ pub fn run(shared: Arc<Shared>, cmds: mpsc::Receiver<Cmd>, mut out: rtrb::Produc
                         m.soc.periph.apply(&a);
                     }
                 }
-                Ok(Cmd::Lead(n)) => lead = n.clamp(128, 4096),
+                Ok(Cmd::Lead(n)) => lead = n.clamp(64, 4096),
                 Ok(Cmd::Pause(p)) => paused = p,
                 Ok(Cmd::Quit) | Err(mpsc::TryRecvError::Disconnected) => return,
                 Err(mpsc::TryRecvError::Empty) => break,
@@ -244,6 +263,21 @@ mod tests {
     fn felucca() -> Vec<u8> {
         std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/felucca.fwsc"))
             .expect("run tools/fetch-testfw.ps1 first")
+    }
+
+    #[test]
+    fn the_audio_callback_records_the_least_fill() {
+        let shared = Shared::new();
+        let (mut prod, cons) = rtrb::RingBuffer::new(64);
+        for _ in 0..10 {
+            prod.push([0.0f32; 2]).unwrap();
+        }
+        let sink = Mutex::new(crate::app::AudioSink { rx: cons, rs: crate::resample::Resampler::new(RATE, RATE) });
+        let mut out = [0.0f32; 8]; // 4 frames
+        crate::app::App::fill(&sink, &shared, &mut out);
+        assert_eq!(shared.fill_min.load(std::sync::atomic::Ordering::Relaxed), 6);
+        crate::app::App::fill(&sink, &shared, &mut out);
+        assert_eq!(shared.fill_min.load(std::sync::atomic::Ordering::Relaxed), 2);
     }
 
     #[test]

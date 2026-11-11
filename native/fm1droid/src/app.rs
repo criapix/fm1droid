@@ -61,6 +61,7 @@ impl App {
                 if missing > 0 {
                     shared.starved.fetch_add(missing as u64, Ordering::Relaxed);
                 }
+                shared.fill_min.fetch_min(rx.slots() as u32, Ordering::Relaxed);
             }
             Err(_) => out.fill(0.0),
         }
