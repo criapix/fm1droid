@@ -9,6 +9,7 @@ pub mod engine;
 pub mod flashrec;
 pub mod layout;
 pub mod resample;
+pub mod tune;
 pub mod ui;
 
 #[cfg(target_os = "android")]
