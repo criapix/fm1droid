@@ -13,7 +13,7 @@ Nenhum firmware vai dentro do APK (licenças diferentes, e o original é proprie
 Só a placa FM-1 é aceita (pacotes do SMK-37 são recusados).
 
 ## Tela
-O painel (1280×820) é ajustado à tela: em aparelhos compridos (19,5:9) escala pela altura e fica centralizado, com faixas na cor de fundo do painel; em tablets escala pela largura. O app respeita o recorte da câmera.
+O painel tem sempre 820 px lógicos de altura e a **largura acompanha o formato da tela** (1280 a 1900): num celular comprido (19,5:9, como o Galaxy S25 Ultra) os blocos são distribuídos de ponta a ponta — knobs e botões laterais maiores, LCD no centro, teclado esticado por toda a largura —, sem faixas vazias. Em telas mais "quadradas" (tablets) vale o arranjo clássico, centralizado, sem distorcer. O app respeita o recorte da câmera e o botão de menu fica num espaço livre do layout. O desenho e o toque vêm do mesmo layout (`native/fm1droid/src/layout.rs`).
 
 ## Desempenho
 O firmware roda no clock real de 240 MHz emulado. No modo **Automático** (padrão), se o áudio falhar por 5 s seguidos o app reduz o clock sozinho (60–240 MHz); escolher um clock nas Configurações desliga o automático.

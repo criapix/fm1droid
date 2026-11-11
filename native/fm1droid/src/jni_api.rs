@@ -147,7 +147,7 @@ pub extern "system" fn Java_com_criapix_fm1droid_Native_midi<'l>(env: JNIEnv<'l>
 /// What is at panel point (x, y): -1 nothing, 0..6 an encoder, 7 the pot, 100 + id a button or key.
 #[no_mangle]
 pub extern "system" fn Java_com_criapix_fm1droid_Native_hit(_env: JNIEnv, _c: JClass, x: jfloat, y: jfloat) -> jint {
-    match panel::hit(x, y) {
+    match app().ui.lock().unwrap().layout.hit(x, y) {
         Some(panel::Ctl::Enc(i)) => i as jint,
         Some(panel::Ctl::Pot) => 7,
         Some(panel::Ctl::Btn(id)) | Some(panel::Ctl::Key(id)) => 100 + id as jint,
@@ -158,22 +158,44 @@ pub extern "system" fn Java_com_criapix_fm1droid_Native_hit(_env: JNIEnv, _c: JC
 /// The velocity of a touch on key `id` at panel height `y` (1 at its top .. 127 at its bottom).
 #[no_mangle]
 pub extern "system" fn Java_com_criapix_fm1droid_Native_keyVel(_env: JNIEnv, _c: JClass, id: jint, y: jfloat) -> jint {
-    panel::key_vel(id as u8, y) as jint
+    app().ui.lock().unwrap().layout.key_vel(id as u8, y) as jint
 }
 
-/// Draw the panel into a direct ByteBuffer of 1280 * 820 * 4 bytes (RGBA).
-/// True when the buffer was rewritten, false when nothing changed.
+/// Lay the panel out for a screen whose width/height ratio is `aspect`: returns the logical
+/// width (the panel is 820 tall) to size the bitmap with.
+#[no_mangle]
+pub extern "system" fn Java_com_criapix_fm1droid_Native_setLayout(_env: JNIEnv, _c: JClass, width: jint) -> jint {
+    app().ui.lock().unwrap().set_width(width.max(0) as usize) as jint
+}
+
+/// The free spot for the app's floating menu button, in logical panel pixels: [x, y].
+#[no_mangle]
+pub extern "system" fn Java_com_criapix_fm1droid_Native_menuPos(env: JNIEnv, _c: JClass) -> jni::sys::jfloatArray {
+    let (x, y) = app().ui.lock().unwrap().layout.menu;
+    match env.new_float_array(2) {
+        Ok(a) => {
+            let _ = env.set_float_array_region(&a, 0, &[x, y]);
+            a.into_raw()
+        }
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Draw the panel into a direct ByteBuffer of (logical width) * 820 * 4 bytes (RGBA).
+/// True when the buffer was rewritten, false when nothing changed (or the buffer is too small).
 #[no_mangle]
 pub extern "system" fn Java_com_criapix_fm1droid_Native_draw<'l>(env: JNIEnv<'l>, _c: JClass<'l>, buf: JByteBuffer<'l>) -> jboolean {
     let (Ok(ptr), Ok(cap)) = (env.get_direct_buffer_address(&buf), env.get_direct_buffer_capacity(&buf)) else { return 0 };
-    if cap < crate::ui::W * crate::ui::H * 4 {
-        return 0;
+    let mut ui = app().ui.lock().unwrap();
+    let n = ui.bytes();
+    if cap != n {
+        return 0; // a bitmap of another width: the app is about to swap it
     }
-    // SAFETY: a direct buffer of at least that many bytes, owned by the caller for this call.
-    let out = unsafe { std::slice::from_raw_parts_mut(ptr, crate::ui::W * crate::ui::H * 4) };
+    // SAFETY: a direct buffer of exactly that many bytes, owned by the caller for this call.
+    let out = unsafe { std::slice::from_raw_parts_mut(ptr, n) };
     let (lcd, leds) = {
         let v = app().shared.view.lock().unwrap();
         (v.lcd.clone(), v.leds)
     };
-    app().ui.lock().unwrap().draw(&lcd, &leds, out) as jboolean
+    ui.draw(&lcd, &leds, out) as jboolean
 }

@@ -11,7 +11,7 @@ Pensado para o Galaxy S25 Ultra (tela 19,5:9, ~3120×1440). Anote os resultados 
 | # | Teste | Esperado | Resultado |
 |---|---|---|---|
 | 1 | Instalação limpa | Abre na biblioteca; o catálogo carrega | |
-| 2 | Painel na tela | Painel inteiro, centralizado, sem distorção; faixas laterais escuras; nada atrás do recorte da câmera | |
+| 2 | Painel na tela | Painel ocupa a tela de ponta a ponta (sem faixas), controles distribuídos, nada atrás do recorte da câmera, botão ⋮ ao lado do LCD | |
 | 3 | Felucca: boot, teclas, 2 dedos, knobs, MASTER | Boota em < 5 s; som; dois dedos tocam duas notas; arrastar knob gira e acende | |
 | 4 | Firmware original da M-VAVE | Boota; troca de preset com o encoder PRESETS; `speed` anotada | |
 | 5 | Clock | Anote qual clock o modo Automático escolheu e a `speed` do menu ⋮ | |

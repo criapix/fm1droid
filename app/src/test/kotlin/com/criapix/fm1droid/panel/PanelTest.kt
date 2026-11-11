@@ -19,12 +19,20 @@ class PanelGeometryTest {
     assertEquals(1f, g.scale, 1e-4f); assertEquals((2000f - 820f) / 2f, g.top, 1e-3f)
   }
 
-  @Test fun fitsTheGalaxyS25UltraLandscape() {
-    // 3120 x 1440 (19.5:9): height limits, the panel stays whole and centred
-    val g = PanelGeometry(viewW = 3120f, viewH = 1440f)
-    assertEquals(1440f / 820f, g.scale, 1e-4f)
-    assertEquals(0f, g.top, 1e-3f)
-    assertTrue(g.left > 0f && g.left + 1280f * g.scale <= 3120f + 1e-2f)
+  @Test fun theGalaxyS25UltraIsFilledEdgeToEdge() {
+    // 3120 x 1440 (19.5:9): the layout widens to the screen's shape, so there are no bands
+    val w = PanelGeometry.logicalWidthFor(3120f, 1440f)
+    assertEquals(1777, w)
+    val g = PanelGeometry(3120f, 1440f, w.toFloat())
+    // the width is rounded to a whole logical pixel: well under one screen pixel of slack
+    assertTrue("top band ${g.top}px", g.top < 1f)
+    assertTrue("side band ${g.left}px", g.left < 3f)
+  }
+
+  @Test fun logicalWidthIsClamped() {
+    assertEquals(1280, PanelGeometry.logicalWidthFor(1000f, 1000f)) // squarer than the panel: letterbox
+    assertEquals(1900, PanelGeometry.logicalWidthFor(4000f, 1000f)) // absurdly wide: pillarbox
+    assertEquals(1280, PanelGeometry.logicalWidthFor(1f, 0f))
   }
 }
 

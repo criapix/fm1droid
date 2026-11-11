@@ -7,6 +7,7 @@ mod panel;
 pub mod app;
 pub mod engine;
 pub mod flashrec;
+pub mod layout;
 pub mod resample;
 pub mod ui;
 

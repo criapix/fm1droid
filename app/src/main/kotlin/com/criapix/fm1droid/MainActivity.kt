@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -98,23 +99,28 @@ private fun Root(emu: Emu, midi: MidiInput) {
     var menu by remember { mutableStateOf(false) }
     LaunchedEffect(state.needsLibrary) { if (state.needsLibrary) library = true }
 
+    var anchor by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
     Box(Modifier.fillMaxSize().background(Color(0xFF18191B))) {
-      PanelScreen(initialPot = emu.prefs.pot.toFloat(), onPot = emu::savePot)
+      // the panel keeps clear of the camera cut-out; the leftover strip is the panel's own backdrop
+      Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
+        PanelScreen(initialPot = emu.prefs.pot.toFloat(), onPot = emu::savePot, onAnchor = { x, y -> anchor = androidx.compose.ui.geometry.Offset(x, y) })
 
-      // floating menu: inside the display cutout's safe area, never over the panel's controls
-      Box(Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.displayCutout).padding(10.dp)) {
-        Box(
-          Modifier.size(40.dp).clip(CircleShape).background(Color(0x66000000)).clickable { menu = true },
-          contentAlignment = Alignment.Center,
-        ) { Text("⋮", color = Color.White) }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-          DropdownMenuItem(text = { Text("Firmwares") }, onClick = { menu = false; library = true })
-          DropdownMenuItem(text = { Text("Configurações") }, onClick = { menu = false; settings = true })
-          DropdownMenuItem(
-            enabled = false,
-            text = { Text("${"%.2f".format(state.speed)}× · ${state.starvedPerSec} falhas/s · MIDI: $devices") },
-            onClick = {},
-          )
+        // floating menu: in a free spot of the layout, never over a control
+        Box(Modifier.offset { androidx.compose.ui.unit.IntOffset((anchor.x - with(density) { 20.dp.toPx() }).toInt(), (anchor.y - with(density) { 20.dp.toPx() }).toInt()) }) {
+          Box(
+            Modifier.size(40.dp).clip(CircleShape).background(Color(0x66000000)).clickable { menu = true },
+            contentAlignment = Alignment.Center,
+          ) { Text("⋮", color = Color.White) }
+          DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(text = { Text("Firmwares") }, onClick = { menu = false; library = true })
+            DropdownMenuItem(text = { Text("Configurações") }, onClick = { menu = false; settings = true })
+            DropdownMenuItem(
+              enabled = false,
+              text = { Text("${"%.2f".format(state.speed)}× · ${state.starvedPerSec} falhas/s · MIDI: $devices") },
+              onClick = {},
+            )
+          }
         }
       }
       if (state.booting) Text("Iniciando…", color = Color.White, modifier = Modifier.align(Alignment.Center))

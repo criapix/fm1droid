@@ -1,15 +1,23 @@
 package com.criapix.fm1droid.panel
 
-/** The 1280x820 panel fitted into a view, centred, aspect kept (any screen shape). */
-class PanelGeometry(viewW: Float, viewH: Float) {
-  val scale = minOf(viewW / W, viewH / H)
-  val left = (viewW - W * scale) / 2f
+/**
+ * The panel (always 820 logical px tall, [logicalW] wide) fitted into a view, centred, aspect kept.
+ * With [logicalWidthFor] the width follows the screen's shape, so the fit leaves no bands.
+ */
+class PanelGeometry(viewW: Float, viewH: Float, logicalW: Float = W) {
+  val scale = minOf(viewW / logicalW, viewH / H)
+  val left = (viewW - logicalW * scale) / 2f
   val top = (viewH - H * scale) / 2f
   fun toPanel(x: Float, y: Float) = Pair((x - left) / scale, (y - top) / scale)
 
   companion object {
     const val W = 1280f
     const val H = 820f
+    const val MAX_W = 1900
+
+    /** The logical width that makes the panel's shape match a view's (clamped to what the layout supports). */
+    fun logicalWidthFor(viewW: Float, viewH: Float): Int =
+      if (viewH <= 0f) W.toInt() else Math.round(H * viewW / viewH).coerceIn(W.toInt(), MAX_W)
   }
 }
 

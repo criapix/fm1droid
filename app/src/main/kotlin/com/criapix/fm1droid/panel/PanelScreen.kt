@@ -37,19 +37,27 @@ private object NativeControls : PanelControls {
 }
 
 /**
- * The FM-1's panel, filling whatever screen it gets: scaled to fit (a tall 19.5:9 phone is limited
- * by height, a tablet by width), centred, the leftover bands in the panel's own background colour.
+ * The FM-1's panel, laid out for the screen it gets: its logical width follows the screen's shape
+ * (see layout.rs), so a long 19.5:9 phone gets its controls spread edge to edge, a squarer tablet
+ * keeps the classic arrangement with bands. [onAnchor] reports, in this view's pixels, a free spot
+ * for a floating button.
  */
 @Composable
-fun PanelScreen(modifier: Modifier = Modifier, initialPot: Float = 900f, onPot: (Int) -> Unit = {}) {
-  val bitmap = remember { Bitmap.createBitmap(1280, 820, Bitmap.Config.ARGB_8888) }
-  val image = remember { bitmap.asImageBitmap() }
-  val buffer = remember { ByteBuffer.allocateDirect(1280 * 820 * 4) }
+fun PanelScreen(
+  modifier: Modifier = Modifier,
+  initialPot: Float = 900f,
+  onPot: (Int) -> Unit = {},
+  onAnchor: (Float, Float) -> Unit = { _, _ -> },
+) {
+  var logicalW by remember { mutableIntStateOf(1280) }
+  val bitmap = remember(logicalW) { Bitmap.createBitmap(logicalW, 820, Bitmap.Config.ARGB_8888) }
+  val image = remember(bitmap) { bitmap.asImageBitmap() }
+  val buffer = remember(logicalW) { ByteBuffer.allocateDirect(logicalW * 820 * 4) }
   val touch = remember { PanelTouch(NativeControls, initialPot) }
   var frame by remember { mutableIntStateOf(0) }
   var geometry by remember { mutableStateOf(PanelGeometry(1280f, 820f)) }
 
-  LaunchedEffect(Unit) {
+  LaunchedEffect(buffer) {
     while (true) {
       androidx.compose.runtime.withFrameNanos { }
       if (Native.draw(buffer)) {
@@ -66,7 +74,14 @@ fun PanelScreen(modifier: Modifier = Modifier, initialPot: Float = 900f, onPot: 
     modifier
       .fillMaxSize()
       .background(Color(0xFF18191B)) // panel.rs ROOM
-      .onSizeChanged { geometry = PanelGeometry(it.width.toFloat(), it.height.toFloat()) }
+      .onSizeChanged {
+        val w = PanelGeometry.logicalWidthFor(it.width.toFloat(), it.height.toFloat())
+        val used = Native.setLayout(w)
+        logicalW = used
+        val g = PanelGeometry(it.width.toFloat(), it.height.toFloat(), used.toFloat())
+        geometry = g
+        Native.menuPos()?.let { a -> onAnchor(g.left + a[0] * g.scale, g.top + a[1] * g.scale) }
+      }
       .pointerInput(Unit) {
         awaitPointerEventScope {
           while (true) {
@@ -94,7 +109,7 @@ fun PanelScreen(modifier: Modifier = Modifier, initialPot: Float = 900f, onPot: 
     drawImage(
       image,
       dstOffset = IntOffset(g.left.roundToInt(), g.top.roundToInt()),
-      dstSize = IntSize((1280 * g.scale).roundToInt(), (820 * g.scale).roundToInt()),
+      dstSize = IntSize((logicalW * g.scale).roundToInt(), (820 * g.scale).roundToInt()),
       filterQuality = FilterQuality.Medium,
     )
   }

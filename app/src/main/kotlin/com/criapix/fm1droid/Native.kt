@@ -27,6 +27,10 @@ object Native {
   external fun midi(data: ByteArray, off: Int, len: Int)
   external fun hit(x: Float, y: Float): Int
   external fun keyVel(id: Int, y: Float): Int
+  /** Lay the panel out for a logical width (820 tall); returns the width used (1280..1900). */
+  external fun setLayout(width: Int): Int
+  /** Free spot for the floating menu button, logical panel pixels: [x, y]. */
+  external fun menuPos(): FloatArray?
   /** True when the buffer was rewritten, false when nothing changed. */
   external fun draw(buf: ByteBuffer): Boolean
 }
