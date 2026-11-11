@@ -39,6 +39,8 @@ data class EmuState(
   val autoClock: Boolean = true,
   /** set when the app lowered the clock by itself, for a one-line notice */
   val autoNotice: String? = null,
+  val autoLead: Boolean = true,
+  val audio: AudioInfo? = null,
 )
 
 class Emu(app: Application) : AndroidViewModel(app) {
@@ -46,13 +48,31 @@ class Emu(app: Application) : AndroidViewModel(app) {
   val saves = SaveStore(File(app.filesDir, "saves"))
   val prefs = Prefs(app)
 
-  private val _state = MutableStateFlow(EmuState(mhz = prefs.mhz, lead = prefs.lead, installed = store.list(), autoClock = prefs.autoClock))
+  private val _state = MutableStateFlow(EmuState(
+    mhz = prefs.mhz, lead = if (prefs.lead > 0) prefs.lead else 768, autoLead = prefs.lead == 0,
+    installed = store.list(), autoClock = prefs.autoClock,
+  ))
   val state: StateFlow<EmuState> = _state
 
   private val bootLock = Mutex()
   private var lastRev = 0
   private var monitor: Job? = null
   private var suggestionDismissed = false
+  /** the automatic lead in effect; recomputed when the audio stream opens */
+  @Volatile private var autoLead = 768
+  /** monitor ticks to ignore: the ring is empty while booting, that is not a dropout */
+  @Volatile private var settle = 0
+
+  private fun effectiveLead() = if (prefs.lead > 0) prefs.lead else autoLead
+
+  /** A new stream (the first, or after the output device changed): start the automatic lead over. */
+  private fun resetAutoLead() {
+    val a = AudioInfo.of(Native.audioInfo())
+    autoLead = if (a != null) LeadPolicy.initial(a.burst, a.rate) else 768
+    settle = 2
+    Native.setLead(effectiveLead())
+    _state.update { it.copy(lead = effectiveLead(), autoLead = prefs.lead == 0, audio = a) }
+  }
 
   init {
     val last = store.lastUsed?.let { id -> store.list().firstOrNull { it.id == id } }
@@ -75,11 +95,11 @@ class Emu(app: Application) : AndroidViewModel(app) {
           Native.boot(bytes, saves.load(fw.id), syx, prefs.mhz, prefs.jit)
         if (err == null) {
           store.lastUsed = fw.id
-          Native.setLead(prefs.lead)
+          Native.setLead(effectiveLead()); settle = 2
           Native.pot(prefs.pot)
           lastRev = Native.flashRev()
           suggestionDismissed = false
-          _state.update { it.copy(current = fw, booting = false, needsLibrary = false, mhz = prefs.mhz, lead = prefs.lead) }
+          _state.update { it.copy(current = fw, booting = false, needsLibrary = false, mhz = prefs.mhz, lead = effectiveLead()) }
         } else {
           _state.update { it.copy(booting = false, error = err) }
         }
@@ -141,8 +161,11 @@ class Emu(app: Application) : AndroidViewModel(app) {
 
   fun setAutoClock() { prefs.autoClock = true; _state.update { it.copy(autoClock = true) } }
 
+  /** [frames] 0 = automatic. */
   fun setLead(frames: Int) {
-    prefs.lead = frames; Native.setLead(frames); _state.update { it.copy(lead = frames) }
+    prefs.lead = frames
+    Native.setLead(effectiveLead())
+    _state.update { it.copy(lead = effectiveLead(), autoLead = frames == 0) }
   }
 
   fun dismissSuggestion() { suggestionDismissed = true; _state.update { it.copy(suggestion = null) } }
@@ -160,17 +183,29 @@ class Emu(app: Application) : AndroidViewModel(app) {
 
   fun onStart() {
     Native.audioStart()
+    resetAutoLead()
     monitor?.cancel()
     monitor = viewModelScope.launch(Dispatchers.IO) {
       var lastStarved = Native.starved()
       var bad = 0
       while (isActive) {
         delay(1000)
-        if (Native.audioLost()) { Native.audioStop(); Native.audioStart() }
+        if (Native.audioLost()) { Native.audioStop(); Native.audioStart(); resetAutoLead() }
         val s = Native.starved()
         val per = s - lastStarved
         lastStarved = s
-        bad = if (per > 0) bad + 1 else 0
+        val info = AudioInfo.of(Native.audioInfo()) // also the AAudio buffer's tuning step
+        val live = _state.value.current != null && !_state.value.booting
+        when {
+          settle > 0 -> { settle--; bad = 0 }
+          per > 0 && live && prefs.lead == 0 && autoLead < LeadPolicy.MAX -> {
+            // dropouts with room to grow: more reserve first, the clock is the last resort
+            autoLead = LeadPolicy.raised(autoLead)
+            Native.setLead(autoLead)
+            bad = 0
+          }
+          else -> bad = if (per > 0) bad + 1 else 0
+        }
         val st = _state.value
         val lower = Prefs.CLOCKS.lastOrNull { it < st.mhz }
         if (bad >= 5 && prefs.autoClock && lower != null && st.current != null && !st.booting) {
@@ -187,6 +222,7 @@ class Emu(app: Application) : AndroidViewModel(app) {
             speed = Native.speed(), starvedPerSec = per, halted = Native.status() and 2 != 0,
             suggestion = if (bad >= 5 && !suggestionDismissed && !prefs.autoClock) lower else it.suggestion,
             autoClock = prefs.autoClock, mhz = prefs.mhz,
+            lead = effectiveLead(), autoLead = prefs.lead == 0, audio = info,
           )
         }
         bootLock.withLock { flushSave() }

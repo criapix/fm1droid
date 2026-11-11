@@ -14,9 +14,9 @@ class Prefs(context: Context) {
     get() = p.getBoolean("autoClock", true)
     set(v) = p.edit().putBoolean("autoClock", v).apply()
 
-  /** frames of audio the engine keeps ahead */
+  /** frames of audio the engine keeps ahead; 0 = automatic (LeadPolicy) */
   var lead: Int
-    get() = p.getInt("lead", 768)
+    get() = p.getInt("lead", 0)
     set(v) = p.edit().putInt("lead", v).apply()
 
   /** native-code (JIT) CPU emulation; off only as a fallback if the device refuses executable memory */
