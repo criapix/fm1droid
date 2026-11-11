@@ -55,7 +55,8 @@ class HapticControls(private val inner: PanelControls, private val haptics: Hapt
 class PanelTouch(private val c: PanelControls, pot: Float = 900f) {
   private sealed interface Grab {
     class Key(var id: Int) : Grab
-    class Enc(val i: Int, var acc: Float = 0f) : Grab
+    /** [acc]: clicks not yet sent (a fraction); [speed]: smoothed drag speed, panel units per ms */
+    class Enc(val i: Int, var lastMs: Long, var acc: Float = 0f, var speed: Float = 0f) : Grab
     data object Pot : Grab
   }
 
@@ -63,17 +64,18 @@ class PanelTouch(private val c: PanelControls, pot: Float = 900f) {
   var pot = pot
     private set
 
-  fun down(pointer: Long, x: Float, y: Float) {
+  /** [timeMs]: the event's time (any monotonic clock); it sets how fast an encoder drag counts as. */
+  fun down(pointer: Long, x: Float, y: Float, timeMs: Long = 0) {
     val h = c.hit(x, y)
     when {
       h >= 100 -> { c.key(h - 100, true, c.keyVel(h - 100, y)); grabs[pointer] = Grab.Key(h - 100) }
       h == 7 -> grabs[pointer] = Grab.Pot
-      h in 0..6 -> grabs[pointer] = Grab.Enc(h)
+      h in 0..6 -> grabs[pointer] = Grab.Enc(h, timeMs)
     }
   }
 
-  /** dx, dy: the pointer's movement in panel units since the last event. */
-  fun move(pointer: Long, x: Float, y: Float, dx: Float, dy: Float) {
+  /** dx, dy: the pointer's movement in panel units since the last event, which happened at [timeMs]. */
+  fun move(pointer: Long, x: Float, y: Float, dx: Float, dy: Float, timeMs: Long = 0) {
     when (val g = grabs[pointer]) {
       is Grab.Key -> if (g.id >= FIRST_NOTE) {
         val h = c.hit(x, y) - 100
@@ -82,9 +84,16 @@ class PanelTouch(private val c: PanelControls, pot: Float = 900f) {
         }
       }
       is Grab.Enc -> {
-        g.acc += dx - dy // right or up = clockwise
-        val clicks = (g.acc / STEP).toInt()
-        if (clicks != 0) { g.acc -= clicks * STEP; c.enc(g.i, clicks) }
+        val d = dx - dy // right or up = clockwise
+        val dt = (timeMs - g.lastMs).coerceIn(1, 100)
+        g.lastMs = timeMs
+        g.speed += (kotlin.math.abs(d) / dt - g.speed) * SMOOTH
+        // turning back starts from zero: the way to the previous option is a whole step, never a hair
+        if (d * g.acc < 0f) g.acc = 0f
+        // each bit of travel counts at the step of the speed it was made at: slow = fine, fast = coarse
+        g.acc += d / stepFor(g.speed)
+        val clicks = g.acc.toInt()
+        if (clicks != 0) { g.acc -= clicks; c.enc(g.i, clicks) }
       }
       Grab.Pot -> { pot = (pot + (dx - dy) * POT_GAIN).coerceIn(0f, 1023f); c.pot(pot.toInt()) }
       null -> {}
@@ -96,7 +105,18 @@ class PanelTouch(private val c: PanelControls, pot: Float = 900f) {
   fun releaseAll() { grabs.keys.toList().forEach(::up) }
 
   companion object {
-    const val STEP = 14f // panel units of drag per encoder click
+    const val STEP = 14f // panel units of drag per encoder click in a fast drag
+    const val SLOW_STEP = 64f // ... in a slow, careful one (about 6 mm on a phone)
+    const val SLOW = 0.15f // panel units per ms: at or below this a drag is careful (~1.5 cm/s)
+    const val FAST = 1.5f // at or above this it is a sweep (~15 cm/s)
+    const val SMOOTH = 0.4f // how much of each event's speed enters the running estimate
+
+    /** Panel units of drag per encoder click at a drag speed: gradual between careful and sweeping. */
+    fun stepFor(speed: Float): Float {
+      val t = ((speed - SLOW) / (FAST - SLOW)).coerceIn(0f, 1f)
+      return SLOW_STEP + (STEP - SLOW_STEP) * t
+    }
+
     const val POT_GAIN = 4f
     const val FIRST_NOTE = 14 // matrix ids 14..40 are the note keys; 0..13 the buttons
   }

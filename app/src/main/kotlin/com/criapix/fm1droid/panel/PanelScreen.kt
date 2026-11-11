@@ -92,11 +92,11 @@ fun PanelScreen(
               val (x, y) = g.toPanel(ch.position.x, ch.position.y)
               val id = ch.id.value
               when {
-                ch.changedToDown() -> touch.down(id, x, y)
+                ch.changedToDown() -> touch.down(id, x, y, ch.uptimeMillis)
                 ch.changedToUp() -> touch.up(id)
                 ch.pressed -> {
                   val d = ch.positionChange()
-                  touch.move(id, x, y, d.x / g.scale, d.y / g.scale)
+                  touch.move(id, x, y, d.x / g.scale, d.y / g.scale, ch.uptimeMillis)
                 }
               }
               ch.consume()

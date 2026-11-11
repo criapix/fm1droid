@@ -75,6 +75,48 @@ class PanelTouchTest {
     assertEquals(listOf("enc 3 2", "enc 3 1"), f.log)
   }
 
+  /** Drag encoder 3 by [d] panel units every [everyMs], [times] times; returns the clicks sent. */
+  private fun drag(f: Fake, t: PanelTouch, d: Float, everyMs: Long, times: Int, from: Long = 0): Int {
+    val before = f.log.size
+    for (k in 1..times) t.move(1, 0f, 0f, d, 0f, from + k * everyMs)
+    return f.log.drop(before).sumOf { it.removePrefix("enc 3 ").toInt() }
+  }
+
+  @Test fun aCarefulDragTakesALongWayPerOption() {
+    val f = Fake(); val t = PanelTouch(f)
+    f.under = 3; t.down(1, 0f, 0f, 0)
+    // 2 units every 16 ms = 0.125 units/ms: careful
+    assertEquals(0, drag(f, t, 2f, 16, 31))
+    assertEquals(1, drag(f, t, 2f, 16, 1, from = 31 * 16))
+    assertEquals(listOf("enc 3 1"), f.log)
+  }
+
+  @Test fun aSweepCoversManyOptionsOverTheSameDistance() {
+    val slow = Fake(); val a = PanelTouch(slow)
+    slow.under = 3; a.down(1, 0f, 0f, 0)
+    val careful = drag(slow, a, 2f, 16, 140) // 280 units, slowly
+    val fast = Fake(); val b = PanelTouch(fast)
+    fast.under = 3; b.down(1, 0f, 0f, 0)
+    val sweep = drag(fast, b, 28f, 8, 10) // 280 units at 3.5 units/ms
+    assertEquals(4, careful)
+    assertTrue("sweep gave $sweep", sweep in 17..20)
+  }
+
+  @Test fun turningBackNeedsAWholeStep() {
+    val f = Fake(); val t = PanelTouch(f)
+    f.under = 3; t.down(1, 0f, 0f, 0)
+    assertEquals(0, drag(f, t, 2f, 16, 29)) // 0.9 of a click forward
+    assertEquals(0, drag(f, t, -2f, 16, 31, from = 29 * 16))
+    assertEquals(-1, drag(f, t, -2f, 16, 1, from = 60 * 16))
+  }
+
+  @Test fun theStepShrinksGraduallyWithSpeed() {
+    assertEquals(PanelTouch.SLOW_STEP, PanelTouch.stepFor(0f), 1e-3f)
+    assertEquals(PanelTouch.STEP, PanelTouch.stepFor(10f), 1e-3f)
+    val mid = PanelTouch.stepFor((PanelTouch.SLOW + PanelTouch.FAST) / 2)
+    assertEquals((PanelTouch.SLOW_STEP + PanelTouch.STEP) / 2, mid, 1e-3f)
+  }
+
   @Test fun twoPointersAreIndependent() {
     val f = Fake(); val t = PanelTouch(f)
     f.under = 120; t.down(1, 0f, 0f)
