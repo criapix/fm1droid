@@ -16,7 +16,7 @@ pub const RATE: u32 = 44_100;
 pub enum Cmd {
     /// Boot a package (.fwsc) with a save (flashrec records, may be empty) and optionally a
     /// DX7 32-voice bank (.syx, may be empty) for the stock firmware's slots 1-32.
-    Boot { pkg: Vec<u8>, saved: Vec<u8>, syx: Vec<u8>, mhz: u32, reply: mpsc::Sender<Result<(), String>> },
+    Boot { pkg: Vec<u8>, saved: Vec<u8>, syx: Vec<u8>, mhz: u32, jit: bool, reply: mpsc::Sender<Result<(), String>> },
     Act(Action),
     /// Frames to keep in the ring.
     Lead(usize),
@@ -86,7 +86,7 @@ fn write_sector(soc: &mut Soc, at: usize, data: &[u8]) {
 }
 
 impl Machine {
-    fn boot(pkg: &[u8], saved: &[u8], syx: &[u8], mhz: u32) -> Result<Self, String> {
+    fn boot(pkg: &[u8], saved: &[u8], syx: &[u8], mhz: u32, jit: bool) -> Result<Self, String> {
         let sectors = flashrec::parse(saved, fm1_soc::FLASH_SIZE)?;
         let st = std::panic::catch_unwind(|| fm1_soc::stock_from_package(pkg, None))
             .map_err(|_| "malformed firmware package".to_owned())??;
@@ -97,7 +97,7 @@ impl Machine {
         soc.periph.hz = mhz as u64 * 1_000_000;
         soc.periph.skip_idle = true;
         let mut cpu = Cpu::new(st.entry);
-        cpu.jit_on = true;
+        cpu.jit_on = jit;
         cpu.user = true; // the SPL hands cpu0 over in user mode
         let params = RAM_BASE + 0x7fc00;
         soc.write32(params, params + 0x40);
@@ -138,8 +138,8 @@ pub fn run(shared: Arc<Shared>, cmds: mpsc::Receiver<Cmd>, mut out: rtrb::Produc
     loop {
         loop {
             match cmds.try_recv() {
-                Ok(Cmd::Boot { pkg, saved, syx, mhz, reply }) => {
-                    let result = Machine::boot(&pkg, &saved, &syx, mhz).map(|next| {
+                Ok(Cmd::Boot { pkg, saved, syx, mhz, jit, reply }) => {
+                    let result = Machine::boot(&pkg, &saved, &syx, mhz, jit).map(|next| {
                         m = Some(next);
                         last_rec.clear();
                         let mut v = shared.view.lock().unwrap();
@@ -221,7 +221,7 @@ mod tests {
 
     fn boot(tx: &mpsc::Sender<Cmd>, pkg: Vec<u8>, saved: Vec<u8>) -> Result<(), String> {
         let (rtx, rrx) = mpsc::channel();
-        tx.send(Cmd::Boot { pkg, saved, syx: vec![], mhz: 240, reply: rtx }).unwrap();
+        tx.send(Cmd::Boot { pkg, saved, syx: vec![], mhz: 240, jit: true, reply: rtx }).unwrap();
         rrx.recv_timeout(Duration::from_secs(30)).expect("boot reply")
     }
 

@@ -118,6 +118,13 @@ private fun Root(emu: Emu, midi: MidiInput) {
         }
       }
       if (state.booting) Text("Iniciando…", color = Color.White, modifier = Modifier.align(Alignment.Center))
+      state.autoNotice?.let {
+        Text(
+          it, color = Color(0xFFFFE082),
+          modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).clip(CircleShape)
+            .background(Color(0xCC000000)).clickable { emu.clearNotice() }.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+      }
       state.error?.let {
         Text(it, color = Color(0xFFFF8A80), modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp).clickable { emu.clearError() })
       }

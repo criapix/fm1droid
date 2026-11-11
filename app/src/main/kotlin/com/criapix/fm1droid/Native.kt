@@ -7,7 +7,7 @@ object Native {
   init { System.loadLibrary("fm1droid") }
 
   /** null on success, the reason otherwise. */
-  external fun boot(pkg: ByteArray, saved: ByteArray, syx: ByteArray, mhz: Int): String?
+  external fun boot(pkg: ByteArray, saved: ByteArray, syx: ByteArray, mhz: Int, jit: Boolean): String?
   /** "ok:<identity>" or "err:<reason>". */
   external fun probe(pkg: ByteArray): String
   external fun audioStart(): Int

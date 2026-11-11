@@ -36,6 +36,9 @@ data class EmuState(
   /** a lower clock worth offering after sustained audio dropouts */
   val suggestion: Int? = null,
   val needsLibrary: Boolean = false,
+  val autoClock: Boolean = true,
+  /** set when the app lowered the clock by itself, for a one-line notice */
+  val autoNotice: String? = null,
 )
 
 class Emu(app: Application) : AndroidViewModel(app) {
@@ -43,7 +46,7 @@ class Emu(app: Application) : AndroidViewModel(app) {
   val saves = SaveStore(File(app.filesDir, "saves"))
   val prefs = Prefs(app)
 
-  private val _state = MutableStateFlow(EmuState(mhz = prefs.mhz, lead = prefs.lead, installed = store.list()))
+  private val _state = MutableStateFlow(EmuState(mhz = prefs.mhz, lead = prefs.lead, installed = store.list(), autoClock = prefs.autoClock))
   val state: StateFlow<EmuState> = _state
 
   private val bootLock = Mutex()
@@ -57,6 +60,7 @@ class Emu(app: Application) : AndroidViewModel(app) {
   }
 
   fun refreshInstalled() = _state.update { it.copy(installed = store.list()) }
+  fun clearNotice() = _state.update { it.copy(autoNotice = null) }
   fun clearError() = _state.update { it.copy(error = null) }
   fun reportError(message: String) = _state.update { it.copy(error = message) }
 
@@ -68,7 +72,7 @@ class Emu(app: Application) : AndroidViewModel(app) {
         if (flush) flushSave()
         val bytes = store.bytes(fw.id)
         val err = if (bytes == null) "firmware file missing" else
-          Native.boot(bytes, saves.load(fw.id), syx, prefs.mhz)
+          Native.boot(bytes, saves.load(fw.id), syx, prefs.mhz, prefs.jit)
         if (err == null) {
           store.lastUsed = fw.id
           Native.setLead(prefs.lead)
@@ -132,7 +136,10 @@ class Emu(app: Application) : AndroidViewModel(app) {
 
   fun restart() { _state.value.current?.let { boot(it) } }
 
-  fun setClock(mhz: Int) { prefs.mhz = mhz; restart() }
+  /** A clock picked by the user: the automatic step-down stops second-guessing it. */
+  fun setClock(mhz: Int) { prefs.autoClock = false; prefs.mhz = mhz; restart() }
+
+  fun setAutoClock() { prefs.autoClock = true; _state.update { it.copy(autoClock = true) } }
 
   fun setLead(frames: Int) {
     prefs.lead = frames; Native.setLead(frames); _state.update { it.copy(lead = frames) }
@@ -166,10 +173,20 @@ class Emu(app: Application) : AndroidViewModel(app) {
         bad = if (per > 0) bad + 1 else 0
         val st = _state.value
         val lower = Prefs.CLOCKS.lastOrNull { it < st.mhz }
+        if (bad >= 5 && prefs.autoClock && lower != null && st.current != null && !st.booting) {
+          // the device cannot keep up at this clock: step down and watch again
+          bad = 0
+          prefs.mhz = lower
+          _state.update { it.copy(autoNotice = "Aparelho sem fôlego a ${st.mhz} MHz: clock reduzido para $lower MHz") }
+          viewModelScope.launch { delay(6000); clearNotice() }
+          restart()
+          continue
+        }
         _state.update {
           it.copy(
             speed = Native.speed(), starvedPerSec = per, halted = Native.status() and 2 != 0,
-            suggestion = if (bad >= 5 && !suggestionDismissed) lower else it.suggestion,
+            suggestion = if (bad >= 5 && !suggestionDismissed && !prefs.autoClock) lower else it.suggestion,
+            autoClock = prefs.autoClock, mhz = prefs.mhz,
           )
         }
         bootLock.withLock { flushSave() }

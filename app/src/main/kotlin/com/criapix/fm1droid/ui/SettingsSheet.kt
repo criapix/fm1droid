@@ -52,10 +52,11 @@ fun SettingsSheet(emu: Emu, onDismiss: () -> Unit) {
       Text("Configurações", style = MaterialTheme.typography.titleLarge)
 
       Text("Clock da CPU emulada", style = MaterialTheme.typography.titleMedium)
-      Text("240 MHz é o clock real do FM-1. Reduza se o som falhar.", style = MaterialTheme.typography.bodySmall)
+      Text("240 MHz é o clock real do FM-1. No modo Automático o app reduz o clock sozinho se o som falhar (atual: ${state.mhz} MHz).", style = MaterialTheme.typography.bodySmall)
       FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(selected = state.autoClock, onClick = { emu.setAutoClock() }, label = { Text("Automático") })
         Prefs.CLOCKS.forEach { mhz ->
-          FilterChip(selected = state.mhz == mhz, onClick = { emu.setClock(mhz) }, label = { Text("$mhz MHz") })
+          FilterChip(selected = !state.autoClock && state.mhz == mhz, onClick = { emu.setClock(mhz) }, label = { Text("$mhz MHz") })
         }
       }
 

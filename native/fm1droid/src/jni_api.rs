@@ -24,10 +24,10 @@ fn jstr(env: &JNIEnv, s: String) -> jstring {
 /// null on success, the reason otherwise.
 #[no_mangle]
 pub extern "system" fn Java_com_criapix_fm1droid_Native_boot<'l>(
-    env: JNIEnv<'l>, _c: JClass<'l>, pkg: JByteArray<'l>, saved: JByteArray<'l>, syx: JByteArray<'l>, mhz: jint,
+    env: JNIEnv<'l>, _c: JClass<'l>, pkg: JByteArray<'l>, saved: JByteArray<'l>, syx: JByteArray<'l>, mhz: jint, jit: jboolean,
 ) -> jstring {
     let (pkg, saved, syx) = (bytes(&env, &pkg), bytes(&env, &saved), bytes(&env, &syx));
-    match app().boot(pkg, saved, syx, mhz as u32) {
+    match app().boot(pkg, saved, syx, mhz as u32, jit != 0) {
         Ok(()) => std::ptr::null_mut(),
         Err(e) => jstr(&env, e),
     }

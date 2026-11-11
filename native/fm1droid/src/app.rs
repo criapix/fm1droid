@@ -42,12 +42,12 @@ impl App {
         let _ = self.cmds.lock().unwrap().send(c);
     }
 
-    pub fn boot(&self, pkg: Vec<u8>, saved: Vec<u8>, syx: Vec<u8>, mhz: u32) -> Result<(), String> {
+    pub fn boot(&self, pkg: Vec<u8>, saved: Vec<u8>, syx: Vec<u8>, mhz: u32, jit: bool) -> Result<(), String> {
         let (reply, got) = mpsc::channel();
         self.cmds
             .lock()
             .unwrap()
-            .send(Cmd::Boot { pkg, saved, syx, mhz, reply })
+            .send(Cmd::Boot { pkg, saved, syx, mhz, jit, reply })
             .map_err(|_| "engine stopped".to_owned())?;
         got.recv().map_err(|_| "engine stopped".to_owned())?
     }

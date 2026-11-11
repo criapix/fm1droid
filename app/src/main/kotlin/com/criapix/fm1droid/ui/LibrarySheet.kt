@@ -52,6 +52,7 @@ fun LibrarySheet(emu: Emu, onDismiss: () -> Unit) {
   val scope = rememberCoroutineScope()
   var tab by remember { mutableStateOf(if (state.installed.isEmpty()) 1 else 0) }
   var message by remember { mutableStateOf<String?>(null) }
+  var query by remember { mutableStateOf("") }
   val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
     if (uri != null) scope.launch {
       message = emu.importUri(uri)
@@ -65,11 +66,13 @@ fun LibrarySheet(emu: Emu, onDismiss: () -> Unit) {
         Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Instalados") })
         Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Catálogo") })
       }
-      Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }) { Text("Importar arquivo .fwsc") }
+      // one row (landscape phones are short): import, and the catalog's search box
+      Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        OutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }) { Text("Importar .fwsc") }
+        if (tab == 1) OutlinedTextField(query, { query = it }, label = { Text("Buscar por nome") }, singleLine = true, modifier = Modifier.weight(1f))
       }
       message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
-      if (tab == 0) Installed(emu, onDismiss) else CatalogTab(emu, onDismiss) { message = it }
+      if (tab == 0) Installed(emu, onDismiss) else CatalogTab(emu, query, onDismiss) { message = it }
     }
   }
 }
@@ -107,10 +110,9 @@ private fun InstalledRow(fw: Installed, current: Boolean, emu: Emu, onDismiss: (
 }
 
 @Composable
-private fun CatalogTab(emu: Emu, onDismiss: () -> Unit, report: (String?) -> Unit) {
+private fun CatalogTab(emu: Emu, query: String, onDismiss: () -> Unit, report: (String?) -> Unit) {
   var entries by remember { mutableStateOf<List<CatalogEntry>?>(null) }
   var failure by remember { mutableStateOf<String?>(null) }
-  var query by remember { mutableStateOf("") }
   val scope = rememberCoroutineScope()
   val busy = remember { mutableStateOf<String?>(null) }
   val errors = remember { mutableStateOf(mapOf<String, String>()) }
@@ -121,7 +123,6 @@ private fun CatalogTab(emu: Emu, onDismiss: () -> Unit, report: (String?) -> Uni
   failure?.let { Text(it, color = MaterialTheme.colorScheme.error); return }
   val all = entries ?: run { Text("Carregando…"); return }
 
-  OutlinedTextField(query, { query = it }, label = { Text("Buscar por nome") }, singleLine = true, modifier = Modifier.fillMaxWidth())
   LazyColumn {
     items(all.filter { it.name.contains(query, ignoreCase = true) }, key = { it.id }) { e ->
       Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
