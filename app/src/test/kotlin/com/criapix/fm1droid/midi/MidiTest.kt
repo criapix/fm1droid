@@ -57,3 +57,39 @@ class MidiMapTest {
     assertEquals("Programa 3 · canal 2", describe(Source.Pc(1, 2)))
   }
 }
+
+class MidiParserTest {
+  private val got = mutableListOf<String>()
+  private val parser = MidiParser { m, n -> got += (0 until n).joinToString(" ") { "%02X".format(m[it].toInt() and 0xFF) } }
+  private fun feed(vararg b: Int) { val a = ByteArray(b.size) { b[it].toByte() }; parser.feed(a, 0, a.size) }
+
+  @Test fun severalMessagesInOnePacket() {
+    feed(0xB0, 0x4A, 0x10, 0xC0, 0x05, 0x90, 0x3C, 0x64)
+    assertEquals(listOf("B0 4A 10", "C0 05", "90 3C 64"), got)
+  }
+
+  @Test fun runningStatusRepeatsTheStatusByte() {
+    feed(0x90, 0x3C, 0x64, 0x3E, 0x64)
+    assertEquals(listOf("90 3C 64", "90 3E 64"), got)
+  }
+
+  @Test fun aMessageSplitOverTwoPackets() {
+    feed(0x90, 0x3C); assertTrue(got.isEmpty())
+    feed(0x64); assertEquals(listOf("90 3C 64"), got)
+  }
+
+  @Test fun realTimeBytesPassThroughInTheMiddle() {
+    feed(0x90, 0x3C, 0xF8, 0x64)
+    assertEquals(listOf("F8", "90 3C 64"), got)
+  }
+
+  @Test fun sysExIsPassedByteByByteAndEndsRunningStatus() {
+    feed(0x90, 0x3C, 0x64, 0xF0, 0x43, 0x10, 0xF7, 0x05)
+    assertEquals(listOf("90 3C 64", "F0", "43", "10", "F7"), got) // the stray 05 is dropped
+  }
+
+  @Test fun honoursOffsetAndLength() {
+    parser.feed(byteArrayOf(0x11, 0x90.toByte(), 0x3C, 0x64, 0x22), 1, 3)
+    assertEquals(listOf("90 3C 64"), got)
+  }
+}
