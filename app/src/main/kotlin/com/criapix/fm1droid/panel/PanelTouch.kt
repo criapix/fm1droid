@@ -29,6 +29,28 @@ interface PanelControls {
   fun pot(v: Int)
 }
 
+/** What the touch layer asks the phone's vibration motor for. */
+interface HapticSink {
+  /** a key or button went down; [button] is false for the note keys, whose strength follows [vel] (1..127) */
+  fun key(button: Boolean, vel: Int)
+  /** one detent of a stepped encoder */
+  fun step()
+}
+
+/** Adds haptics to any [PanelControls]: a pulse when a key goes down, a tick per encoder step. */
+class HapticControls(private val inner: PanelControls, private val haptics: HapticSink) : PanelControls by inner {
+  override fun key(id: Int, down: Boolean, vel: Int) {
+    if (down) haptics.key(id < PanelTouch.FIRST_NOTE, vel)
+    inner.key(id, down, vel)
+  }
+
+  override fun enc(i: Int, clicks: Int) {
+    if (clicks != 0) haptics.step()
+    inner.enc(i, clicks)
+  }
+  // the MASTER pot is continuous: no steps, so no haptics
+}
+
 /** Multi-touch on the panel, in panel coordinates. One grab per pointer. */
 class PanelTouch(private val c: PanelControls, pot: Float = 900f) {
   private sealed interface Grab {

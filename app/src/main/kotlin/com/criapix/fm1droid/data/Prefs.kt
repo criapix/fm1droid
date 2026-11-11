@@ -24,6 +24,16 @@ class Prefs(context: Context) {
     get() = p.getBoolean("jit", true)
     set(v) = p.edit().putBoolean("jit", v).apply()
 
+  /** vibration feedback on keys, buttons and encoder steps */
+  var haptics: Boolean
+    get() = p.getBoolean("haptics", true)
+    set(v) = p.edit().putBoolean("haptics", v).apply()
+
+  /** 0 = leve, 1 = normal, 2 = forte */
+  var hapticLevel: Int
+    get() = p.getInt("hapticLevel", 1)
+    set(v) = p.edit().putInt("hapticLevel", v).apply()
+
   var pot: Int
     get() = p.getInt("pot", 900)
     set(v) = p.edit().putInt("pot", v).apply()

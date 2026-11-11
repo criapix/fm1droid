@@ -41,6 +41,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.criapix.fm1droid.midi.MidiInput
+import com.criapix.fm1droid.panel.Haptics
 import com.criapix.fm1droid.panel.PanelScreen
 import com.criapix.fm1droid.ui.LibrarySheet
 import com.criapix.fm1droid.ui.SettingsSheet
@@ -51,6 +52,7 @@ object BuildInfo { const val VERSION = "0.1.0" }
 class MainActivity : ComponentActivity() {
   private val emu: Emu by viewModels()
   private lateinit var midi: MidiInput
+  private lateinit var haptics: Haptics
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -60,11 +62,12 @@ class MainActivity : ComponentActivity() {
       window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
     }
     midi = MidiInput(this)
+    haptics = Haptics(this, emu.prefs)
     lifecycle.addObserver(object : DefaultLifecycleObserver {
       override fun onStart(owner: LifecycleOwner) { emu.onStart(); midi.start() }
       override fun onStop(owner: LifecycleOwner) { midi.stop(); emu.onStop() }
     })
-    setContent { Root(emu, midi) }
+    setContent { Root(emu, midi, haptics) }
     handleIntent(intent)
   }
 
@@ -90,7 +93,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun Root(emu: Emu, midi: MidiInput) {
+private fun Root(emu: Emu, midi: MidiInput, haptics: Haptics) {
   MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
     val state by emu.state.collectAsState()
     val devices by midi.count.collectAsState()
@@ -104,7 +107,7 @@ private fun Root(emu: Emu, midi: MidiInput) {
     Box(Modifier.fillMaxSize().background(Color(0xFF18191B))) {
       // the panel keeps clear of the camera cut-out; the leftover strip is the panel's own backdrop
       Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
-        PanelScreen(initialPot = emu.prefs.pot.toFloat(), onPot = emu::savePot, onAnchor = { x, y -> anchor = androidx.compose.ui.geometry.Offset(x, y) })
+        PanelScreen(initialPot = emu.prefs.pot.toFloat(), onPot = emu::savePot, haptics = haptics, onAnchor = { x, y -> anchor = androidx.compose.ui.geometry.Offset(x, y) })
 
         // floating menu: in a free spot of the layout, never over a control
         Box(Modifier.offset { androidx.compose.ui.unit.IntOffset((anchor.x - with(density) { 20.dp.toPx() }).toInt(), (anchor.y - with(density) { 20.dp.toPx() }).toInt()) }) {

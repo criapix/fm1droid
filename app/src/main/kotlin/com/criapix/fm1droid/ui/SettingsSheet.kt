@@ -67,6 +67,23 @@ fun SettingsSheet(emu: Emu, onDismiss: () -> Unit) {
         }
       }
 
+      var haptics by remember { mutableStateOf(emu.prefs.haptics) }
+      var level by remember { mutableStateOf(emu.prefs.hapticLevel) }
+      Text("Feedback tátil", style = MaterialTheme.typography.titleMedium)
+      Text("Vibração ao tocar teclas e botões e a cada passo dos knobs com passos (o MASTER é contínuo e não vibra).", style = MaterialTheme.typography.bodySmall)
+      androidx.compose.foundation.layout.Row(
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        androidx.compose.material3.Switch(checked = haptics, onCheckedChange = { haptics = it; emu.prefs.haptics = it })
+        Text(if (haptics) "Ligado" else "Desligado")
+      }
+      if (haptics) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("Leve" to 0, "Normal" to 1, "Forte" to 2).forEach { (label, l) ->
+          FilterChip(selected = level == l, onClick = { level = l; emu.prefs.hapticLevel = l }, label = { Text(label) })
+        }
+      }
+
       val fw = state.current
       if (fw != null && fw.source == "catalog:mvave") {
         Text("Banco DX7", style = MaterialTheme.typography.titleMedium)

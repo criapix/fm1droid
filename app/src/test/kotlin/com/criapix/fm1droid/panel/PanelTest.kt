@@ -95,3 +95,52 @@ class PanelTouchTest {
     assertEquals("key 20 false 0", f.log.last())
   }
 }
+
+class HapticControlsTest {
+  private class Inner : PanelControls {
+    val log = mutableListOf<String>()
+    override fun hit(x: Float, y: Float) = 7
+    override fun keyVel(id: Int, y: Float) = 55
+    override fun key(id: Int, down: Boolean, vel: Int) { log += "key $id $down" }
+    override fun enc(i: Int, clicks: Int) { log += "enc $i $clicks" }
+    override fun pot(v: Int) { log += "pot $v" }
+  }
+
+  private class Sink : HapticSink {
+    val log = mutableListOf<String>()
+    override fun key(button: Boolean, vel: Int) { log += "key button=$button vel=$vel" }
+    override fun step() { log += "step" }
+  }
+
+  @Test fun aKeyGoingDownBuzzesWithItsVelocityAndStillReachesTheEmulator() {
+    val inner = Inner(); val sink = Sink(); val c = HapticControls(inner, sink)
+    c.key(20, true, 90)
+    assertEquals(listOf("key button=false vel=90"), sink.log)
+    assertEquals(listOf("key 20 true"), inner.log)
+  }
+
+  @Test fun buttonsAreToldApartFromNoteKeys() {
+    val sink = Sink(); val c = HapticControls(Inner(), sink)
+    c.key(9, true, 99) // SAVE
+    c.key(14, true, 99) // first note key
+    assertEquals(listOf("key button=true vel=99", "key button=false vel=99"), sink.log)
+  }
+
+  @Test fun releasingIsSilent() {
+    val sink = Sink(); val c = HapticControls(Inner(), sink)
+    c.key(20, false, 0)
+    assertTrue(sink.log.isEmpty())
+  }
+
+  @Test fun everyEncoderStepTicksButTheContinuousPotDoesNot() {
+    val inner = Inner(); val sink = Sink(); val c = HapticControls(inner, sink)
+    c.enc(3, 2); c.enc(3, -1); c.enc(3, 0); c.pot(500)
+    assertEquals(listOf("step", "step"), sink.log)
+    assertEquals(listOf("enc 3 2", "enc 3 -1", "enc 3 0", "pot 500"), inner.log)
+  }
+
+  @Test fun hitAndVelocityPassStraightThrough() {
+    val c = HapticControls(Inner(), Sink())
+    assertEquals(7, c.hit(0f, 0f)); assertEquals(55, c.keyVel(1, 0f))
+  }
+}

@@ -48,12 +48,13 @@ fun PanelScreen(
   initialPot: Float = 900f,
   onPot: (Int) -> Unit = {},
   onAnchor: (Float, Float) -> Unit = { _, _ -> },
+  haptics: HapticSink? = null,
 ) {
   var logicalW by remember { mutableIntStateOf(1280) }
   val bitmap = remember(logicalW) { Bitmap.createBitmap(logicalW, 820, Bitmap.Config.ARGB_8888) }
   val image = remember(bitmap) { bitmap.asImageBitmap() }
   val buffer = remember(logicalW) { ByteBuffer.allocateDirect(logicalW * 820 * 4) }
-  val touch = remember { PanelTouch(NativeControls, initialPot) }
+  val touch = remember(haptics) { PanelTouch(if (haptics != null) HapticControls(NativeControls, haptics) else NativeControls, initialPot) }
   var frame by remember { mutableIntStateOf(0) }
   var geometry by remember { mutableStateOf(PanelGeometry(1280f, 820f)) }
 
@@ -68,7 +69,7 @@ fun PanelScreen(
       }
     }
   }
-  DisposableEffect(Unit) { onDispose { touch.releaseAll(); onPot(touch.pot.toInt()) } }
+  DisposableEffect(touch) { onDispose { touch.releaseAll(); onPot(touch.pot.toInt()) } }
 
   Canvas(
     modifier
