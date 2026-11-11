@@ -15,3 +15,4 @@ mod smoke {
 }
 
 pub mod resample;
+pub mod flashrec;
