@@ -25,3 +25,16 @@
 - Verificado só por testes unitários JVM (26) e pela tela no emulador (22 linhas legíveis em paisagem, Aprender/Cancelar, fechar a folha cancela). **Sem controlador físico**: nada foi testado com o CK61.
 - **Ainda desconhecido**: quais controles do CK61 transmitem MIDI e com que números de CC/nota. Rodar o roteiro em DEVICE-TEST.md e anotar aqui o que o monitor "Última mensagem recebida" mostrar para cada controle.
 - Limites conhecidos: knobs com batente não passam das pontas de um encoder sem fim; controles em modo relativo, NRPN, pitch bend e aftertouch estão fora; o MASTER na tela guarda o próprio valor, então o próximo arrasto pula para ele depois de um movimento MIDI.
+
+## Latência de áudio (2026-11-11)
+
+O que mudou: reserva de áudio automática (começa em um bloco do callback + 128 quadros e sobe 64 por segundo com falhas, até 1024), buffer do AAudio de um bloco que cresce um bloco a cada leitura com estouros (máximo 4), thread do motor com prioridade de áudio (`setpriority -19`) e `Native.audioInfo()` mostrado em Configurações.
+
+Verificação: só testes unitários (`cargo test`, `LeadPolicyTest`) e a compilação. Nada disso mede a latência real; o número que vale é a leitura do usuário com o CK61 (checklist em DEVICE-TEST.md).
+
+Única leitura feita até agora (S25 Ultra, som pelo alto-falante do celular, CK61 desligado, FMini-1): 48000 Hz, bloco de 96 quadros, buffer de 96 (2,0 ms), modo de baixa latência, estouros 0; atraso estimado: emulador 10,7 ms + saída do Android 11,9 ms; folga mínima da reserva 216 quadros; 2,00× tempo real. A reserva já tinha subido de 216 para 472 quadros (4 passos) nos primeiros segundos; a causa não foi investigada.
+
+Como ler os números de quem testar:
+- "emulador" + "saída do Android" ≈ o que o app e o sistema somam; o buffer do próprio firmware e o conversor do CK61 vêm por cima e não aparecem.
+- Se a saída disser **SEM modo de baixa latência**, ou "saída do Android" ficar acima de ~30 ms com o CK61 enquanto o alto-falante do celular mostra muito menos: o atraso que sobra está no caminho de áudio USB do Android. O app não consegue baixá-lo pelo AAudio. O único caminho é dirigir a interface USB de áudio direto do app, um trabalho separado e maior: **parar e levar os números de volta à sessão de planejamento** em vez de tentar.
+- Se a reserva continuar subindo até 1024 no celular: o motor não está acompanhando; tentar um clock mais baixo em Configurações e anotar o resultado.

@@ -33,6 +33,8 @@ Limites: knobs com batente não giram um encoder sem fim além das pontas (volte
 ## Desempenho
 O firmware roda no clock real de 240 MHz emulado. No modo **Automático** (padrão), se o áudio falhar por 5 s seguidos o app reduz o clock sozinho (60–240 MHz); escolher um clock nas Configurações desliga o automático.
 
+**Latência.** Em Configurações, "Automática" (padrão) começa com a menor reserva de áudio que o aparelho aguenta e só aumenta se o som falhar; "Baixa", "Normal" e "Segura" fixam a reserva. O buffer da saída de áudio também começa mínimo e cresce se o Android reportar estouros. Em Desempenho aparecem a taxa, o bloco, o buffer, se o modo de baixa latência está ativo e o atraso estimado (emulador + saída do Android). O atraso do firmware e do conversor do teclado não aparece.
+
 ## Compilar (Windows)
 Pré-requisitos: Rust + `cargo-ndk`, alvos `aarch64-linux-android` e `x86_64-linux-android`, NDK 30.0.16248370, JDK 17, VS 2022 Build Tools (C++).
 ```powershell

@@ -36,5 +36,15 @@ Pensado para o Galaxy S25 Ultra (tela 19,5:9, ~3120×1440). Anote os resultados 
 - [ ] Fechar e reabrir o app: as associações continuam.
 - [ ] "Limpar tudo": tudo volta a ser MIDI normal.
 
+## Latência com o CK61 como interface de áudio
+
+Com o CK61 ligado por USB e o som saindo por ele, abrir ⋮ → Configurações e anotar em NOTES.md:
+
+- [ ] Linha "Saída de áudio": taxa, bloco, buffer, e se diz "modo de baixa latência" ou "SEM".
+- [ ] Linha "Atraso estimado": emulador (ms) e saída do Android (ms).
+- [ ] Tocar por 2 minutos em "Automática": a reserva subiu? Para quanto? Houve estalos depois do primeiro minuto?
+- [ ] Repetir as três leituras com o som saindo pelo alto-falante do celular (sem o CK), para comparar.
+- [ ] Impressão ao tocar: o atraso diminuiu em relação à versão anterior? Ainda incomoda?
+
 ## Medições do emulador (referência, não representa o aparelho)
 Emulador x86_64 (API 36) sobre PC Windows, Felucca: 60 MHz → 1,24×, 120 → 0,57×, 160 → 0,52×, 240 → 0,36×. JIT ligado/desligado a 60 MHz: 1,24× / 1,39× (sem ganho aparente em x86_64). O ponto de partida real é o resultado do `clockSweep` no arm64.
