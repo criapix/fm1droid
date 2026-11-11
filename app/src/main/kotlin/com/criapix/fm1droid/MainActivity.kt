@@ -2,6 +2,8 @@ package com.criapix.fm1droid
 
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -41,9 +43,13 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.criapix.fm1droid.midi.MidiInput
+import com.criapix.fm1droid.midi.MidiMap
+import com.criapix.fm1droid.midi.MidiRouter
+import com.criapix.fm1droid.midi.PanelSink
 import com.criapix.fm1droid.panel.Haptics
 import com.criapix.fm1droid.panel.PanelScreen
 import com.criapix.fm1droid.ui.LibrarySheet
+import com.criapix.fm1droid.ui.MidiMapSheet
 import com.criapix.fm1droid.ui.SettingsSheet
 import kotlinx.coroutines.launch
 
@@ -52,6 +58,7 @@ object BuildInfo { const val VERSION = "0.1.0" }
 class MainActivity : ComponentActivity() {
   private val emu: Emu by viewModels()
   private lateinit var midi: MidiInput
+  private lateinit var router: MidiRouter
   private lateinit var haptics: Haptics
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,13 +68,26 @@ class MainActivity : ComponentActivity() {
     if (Build.VERSION.SDK_INT >= 28) {
       window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
     }
-    midi = MidiInput(this)
+    val main = Handler(Looper.getMainLooper())
+    router = MidiRouter(
+      sink = object : PanelSink {
+        override fun key(id: Int, down: Boolean, vel: Int) = Native.key(id, down, vel)
+        override fun enc(i: Int, clicks: Int) = Native.enc(i, clicks)
+        override fun pot(v: Int) = Native.pot(v)
+      },
+      forward = { data, off, len -> Native.midi(data, off, len) },
+      later = { ms, block -> main.postDelayed({ block() }, ms) },
+      map = MidiMap.decode(emu.prefs.midiMap),
+      onChange = { emu.prefs.midiMap = it.encode() },
+    )
+    router.unitsPerClick = emu.prefs.midiUnits
+    midi = MidiInput(this, router::feed)
     haptics = Haptics(this, emu.prefs)
     lifecycle.addObserver(object : DefaultLifecycleObserver {
       override fun onStart(owner: LifecycleOwner) { emu.onStart(); midi.start() }
-      override fun onStop(owner: LifecycleOwner) { midi.stop(); emu.onStop() }
+      override fun onStop(owner: LifecycleOwner) { midi.stop(); router.releaseAll(); emu.onStop() }
     })
-    setContent { Root(emu, midi, haptics) }
+    setContent { Root(emu, midi, router, haptics) }
     handleIntent(intent)
   }
 
@@ -93,12 +113,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun Root(emu: Emu, midi: MidiInput, haptics: Haptics) {
+private fun Root(emu: Emu, midi: MidiInput, router: MidiRouter, haptics: Haptics) {
   MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
     val state by emu.state.collectAsState()
     val devices by midi.count.collectAsState()
     var library by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
+    var midiMap by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     LaunchedEffect(state.needsLibrary) { if (state.needsLibrary) library = true }
 
@@ -117,6 +138,7 @@ private fun Root(emu: Emu, midi: MidiInput, haptics: Haptics) {
           ) { Text("⋮", color = Color.White) }
           DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text("Firmwares") }, onClick = { menu = false; library = true })
+            DropdownMenuItem(text = { Text("Controle MIDI") }, onClick = { menu = false; midiMap = true })
             DropdownMenuItem(text = { Text("Configurações") }, onClick = { menu = false; settings = true })
             DropdownMenuItem(
               enabled = false,
@@ -140,5 +162,6 @@ private fun Root(emu: Emu, midi: MidiInput, haptics: Haptics) {
     }
     if (library) LibrarySheet(emu) { library = false }
     if (settings) SettingsSheet(emu) { settings = false }
+    if (midiMap) MidiMapSheet(router, emu.prefs, devices) { midiMap = false }
   }
 }

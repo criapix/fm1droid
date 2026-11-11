@@ -38,6 +38,16 @@ class Prefs(context: Context) {
     get() = p.getInt("pot", 900)
     set(v) = p.edit().putInt("pot", v).apply()
 
+  /** MIDI controller bindings, in MidiMap's text form */
+  var midiMap: String
+    get() = p.getString("midiMap", "") ?: ""
+    set(v) = p.edit().putString("midiMap", v).apply()
+
+  /** CC units of knob travel per encoder click */
+  var midiUnits: Int
+    get() = p.getInt("midiUnits", 2)
+    set(v) = p.edit().putInt("midiUnits", v).apply()
+
   companion object {
     const val DEFAULT_MHZ = 240
     val CLOCKS = listOf(60, 80, 100, 120, 160, 200, 240)

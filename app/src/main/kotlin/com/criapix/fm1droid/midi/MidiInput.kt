@@ -8,12 +8,11 @@ import android.media.midi.MidiOutputPort
 import android.media.midi.MidiReceiver
 import android.os.Handler
 import android.os.Looper
-import com.criapix.fm1droid.Native
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/** Every MIDI device that sends (USB and paired BLE keyboards) feeds the FM-1's MIDI IN. */
-class MidiInput(context: Context) {
+/** Every MIDI device that sends (USB and paired BLE keyboards) feeds [sink] (the MidiRouter). */
+class MidiInput(context: Context, private val sink: (ByteArray, Int, Int) -> Unit) {
   private val manager = context.getSystemService(Context.MIDI_SERVICE) as? MidiManager
   private val handler = Handler(Looper.getMainLooper())
   private val open = HashMap<Int, Pair<MidiDevice, List<MidiOutputPort>>>()
@@ -26,7 +25,7 @@ class MidiInput(context: Context) {
   }
 
   private val receiver = object : MidiReceiver() {
-    override fun onSend(msg: ByteArray, offset: Int, count: Int, timestamp: Long) = Native.midi(msg, offset, count)
+    override fun onSend(msg: ByteArray, offset: Int, count: Int, timestamp: Long) = sink(msg, offset, count)
   }
 
   fun start() {
