@@ -18,6 +18,15 @@ O painel tem sempre 820 px lógicos de altura e a **largura acompanha o formato 
 ## Feedback tátil
 Vibração ao tocar teclas (a força acompanha a altura do toque, ou seja, a velocidade MIDI) e botões, e um tick a cada passo dos encoders com passos (SELECT, PRESETS, ALGORITHM, KNOB1–4). O MASTER é contínuo e não vibra. Liga/desliga e intensidade (Leve/Normal/Forte) ficam nas Configurações. Usa os primitivos de haptics do Android 11+ (`CLICK`/`TICK`), com fallback para versões antigas.
 
+## Controlador MIDI externo
+Um teclado MIDI *class-compliant* ligado por USB (no Yamaha CK61: cabo USB-B → USB-C na porta USB TO HOST) toca o FM-1 na hora: as notas e o que mais ele enviar vão para o MIDI IN do firmware. Em ⋮ → **Controle MIDI** dá para associar botões, knobs e sliders do teclado aos controles do painel (MASTER, os 7 encoders e os 14 botões): toque em **Aprender** na linha do controle e mexa no teclado. A linha "Última mensagem recebida" funciona como monitor MIDI.
+
+- **Knob/slider → encoder**: o movimento vira passos do encoder; "Curso dos knobs" define quantos passos cabem numa volta (127, 63 ou 31). **Slider → MASTER**: segue o valor de 0 a 1023.
+- **Botão ou programa (PC) → botão do painel**: por padrão cada mensagem é um toque (serve para botões do teclado que alternam entre 127 e 0); **Segurar** faz o botão ficar apertado enquanto o controle estiver "ligado" (valor ≥ 64). Uma **tecla** associada a um botão o segura enquanto estiver pressionada e não soa.
+- Bank Select (CC 0 e 32) e mensagens de modo de canal (CC 120–127) nunca são associados. Tudo que não estiver associado continua indo ao firmware como MIDI normal. As associações ficam salvas.
+
+Limites: knobs com batente não giram um encoder sem fim além das pontas (volte o knob e continue); controles em modo relativo, NRPN, pitch bend e aftertouch não são suportados; o arrasto do MASTER na tela guarda o próprio valor, então depois de mexer por MIDI o próximo arrasto na tela pula para o valor antigo da tela.
+
 ## Desempenho
 O firmware roda no clock real de 240 MHz emulado. No modo **Automático** (padrão), se o áudio falhar por 5 s seguidos o app reduz o clock sozinho (60–240 MHz); escolher um clock nas Configurações desliga o automático.
 

@@ -23,5 +23,18 @@ Pensado para o Galaxy S25 Ultra (tela 19,5:9, ~3120×1440). Anote os resultados 
 | 11 | Feedback tátil | Teclas e botões vibram ao tocar (tecla tocada mais embaixo = mais forte); cada passo de SELECT/PRESETS/ALGORITHM/KNOB1–4 dá um tick; o MASTER não vibra; Configurações liga/desliga e muda Leve/Normal/Forte | |
 | 12 | Firmwares pesados (Melodee, DUELL, SLOOP) | Anotar `speed` e o clock necessário | |
 
+## Controlador MIDI externo (Yamaha CK61)
+
+- [ ] Cabo USB-B → USB-C no USB TO HOST: o menu ⋮ mostra "MIDI: 1" e as teclas tocam o FM-1.
+- [ ] De onde sai o som (celular ou alto-falantes do CK, que também é interface de áudio USB)? Anotar. Se o áudio cair ao conectar, anotar.
+- [ ] O CK toca os próprios timbres junto? Desligar as seções ou o Local Control e anotar o que funcionou.
+- [ ] Controle MIDI → mexer em cada controle do CK e anotar em NOTES.md o que aparece em "Última mensagem recebida" (drawbars, knobs, botões de seção, botões de Live Set, rodas, pedal).
+- [ ] Aprender um drawbar em KNOB1: gira nos dois sentidos, um passo por vez em "127 passos".
+- [ ] Aprender um slider em MASTER: o volume acompanha de 0 ao máximo.
+- [ ] Aprender um botão do CK em HOME: um toque = um HOME. Se disparar duas vezes por toque, ligar "Segurar".
+- [ ] Aprender uma tecla grave em PLAY: a tecla não soa mais e aciona o PLAY.
+- [ ] Fechar e reabrir o app: as associações continuam.
+- [ ] "Limpar tudo": tudo volta a ser MIDI normal.
+
 ## Medições do emulador (referência, não representa o aparelho)
 Emulador x86_64 (API 36) sobre PC Windows, Felucca: 60 MHz → 1,24×, 120 → 0,57×, 160 → 0,52×, 240 → 0,36×. JIT ligado/desligado a 60 MHz: 1,24× / 1,39× (sem ganho aparente em x86_64). O ponto de partida real é o resultado do `clockSweep` no arm64.

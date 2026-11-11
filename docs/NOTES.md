@@ -19,3 +19,9 @@
 
 ## S25 Ultra (SM-S938B, arm64-v8a), Felucca, clockSweep
 - 60 MHz: JIT 4,01x / sem JIT 1,35x. 120 MHz: 1,55x. 160 MHz: 1,47x. **240 MHz: 1,43x** (>= 1,3x: o clock real do FM-1 acompanha o tempo real). O JIT funciona no Android arm64 (sem negacao do SELinux).
+
+## Controle MIDI externo (2026-11-11)
+- Existe o mapeamento de controles MIDI (MIDI Learn): `midi/MidiParser` separa o fluxo em mensagens, `MidiRouter` traduz as associadas em `Native.key/enc/pot` e repassa o resto ao firmware, `MidiMap` guarda as associações (texto em `Prefs.midiMap`), tela em ⋮ → Controle MIDI. Plano: `docs/plans/2026-11-11-midi-control-mapping.md`.
+- Verificado só por testes unitários JVM (26) e pela tela no emulador (22 linhas legíveis em paisagem, Aprender/Cancelar, fechar a folha cancela). **Sem controlador físico**: nada foi testado com o CK61.
+- **Ainda desconhecido**: quais controles do CK61 transmitem MIDI e com que números de CC/nota. Rodar o roteiro em DEVICE-TEST.md e anotar aqui o que o monitor "Última mensagem recebida" mostrar para cada controle.
+- Limites conhecidos: knobs com batente não passam das pontas de um encoder sem fim; controles em modo relativo, NRPN, pitch bend e aftertouch estão fora; o MASTER na tela guarda o próprio valor, então o próximo arrasto pula para ele depois de um movimento MIDI.
