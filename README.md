@@ -15,6 +15,9 @@ Só a placa FM-1 é aceita (pacotes do SMK-37 são recusados).
 ## Tela
 O painel tem sempre 820 px lógicos de altura e a **largura acompanha o formato da tela** (1280 a 1900): num celular comprido (19,5:9, como o Galaxy S25 Ultra) os blocos são distribuídos de ponta a ponta — knobs e botões laterais maiores, LCD no centro, teclado esticado por toda a largura —, sem faixas vazias. Em telas mais "quadradas" (tablets) vale o arranjo clássico, centralizado, sem distorcer. O app respeita o recorte da câmera e o botão de menu fica num espaço livre do layout. O desenho e o toque vêm do mesmo layout (`native/fm1droid/src/layout.rs`).
 
+## Feedback tátil
+Vibração ao tocar teclas (a força acompanha a altura do toque, ou seja, a velocidade MIDI) e botões, e um tick a cada passo dos encoders com passos (SELECT, PRESETS, ALGORITHM, KNOB1–4). O MASTER é contínuo e não vibra. Liga/desliga e intensidade (Leve/Normal/Forte) ficam nas Configurações. Usa os primitivos de haptics do Android 11+ (`CLICK`/`TICK`), com fallback para versões antigas.
+
 ## Desempenho
 O firmware roda no clock real de 240 MHz emulado. No modo **Automático** (padrão), se o áudio falhar por 5 s seguidos o app reduz o clock sozinho (60–240 MHz); escolher um clock nas Configurações desliga o automático.
 

@@ -20,7 +20,8 @@ Pensado para o Galaxy S25 Ultra (tela 19,5:9, ~3120×1440). Anote os resultados 
 | 8 | Save | Salvar preset (botão SAVE do firmware), matar o app no multitarefa, reabrir: preset continua | |
 | 9 | Rotação e ciclo de vida | Girar 180°; bloquear/desbloquear; atender uma chamada | |
 | 10 | MIDI | Teclado USB: notas tocam; o menu ⋮ mostra "MIDI: 1" | |
-| 11 | Firmwares pesados (Melodee, DUELL, SLOOP) | Anotar `speed` e o clock necessário | |
+| 11 | Feedback tátil | Teclas e botões vibram ao tocar (tecla tocada mais embaixo = mais forte); cada passo de SELECT/PRESETS/ALGORITHM/KNOB1–4 dá um tick; o MASTER não vibra; Configurações liga/desliga e muda Leve/Normal/Forte | |
+| 12 | Firmwares pesados (Melodee, DUELL, SLOOP) | Anotar `speed` e o clock necessário | |
 
 ## Medições do emulador (referência, não representa o aparelho)
 Emulador x86_64 (API 36) sobre PC Windows, Felucca: 60 MHz → 1,24×, 120 → 0,57×, 160 → 0,52×, 240 → 0,36×. JIT ligado/desligado a 60 MHz: 1,24× / 1,39× (sem ganho aparente em x86_64). O ponto de partida real é o resultado do `clockSweep` no arm64.
