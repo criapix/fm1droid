@@ -53,7 +53,7 @@ import com.criapix.fm1droid.ui.MidiMapSheet
 import com.criapix.fm1droid.ui.SettingsSheet
 import kotlinx.coroutines.launch
 
-object BuildInfo { const val VERSION = "0.1.0" }
+object BuildInfo { const val VERSION = "0.3.0" }
 
 class MainActivity : ComponentActivity() {
   private val emu: Emu by viewModels()
