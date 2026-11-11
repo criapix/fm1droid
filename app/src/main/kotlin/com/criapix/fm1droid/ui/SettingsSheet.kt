@@ -61,9 +61,15 @@ fun SettingsSheet(emu: Emu, onDismiss: () -> Unit) {
       }
 
       Text("Latência", style = MaterialTheme.typography.titleMedium)
+      Text(
+        "Automática começa com a menor reserva de áudio que o aparelho aguenta e só aumenta se o som falhar. " +
+          "Reserva atual: ${"%.1f".format(state.lead * 1000f / 44_100f)} ms.",
+        style = MaterialTheme.typography.bodySmall,
+      )
       FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(selected = state.autoLead, onClick = { emu.setLead(0) }, label = { Text("Automática") })
         listOf("Baixa" to 384, "Normal" to 768, "Segura" to 1536).forEach { (label, frames) ->
-          FilterChip(selected = state.lead == frames, onClick = { emu.setLead(frames) }, label = { Text(label) })
+          FilterChip(selected = !state.autoLead && state.lead == frames, onClick = { emu.setLead(frames) }, label = { Text(label) })
         }
       }
 
@@ -102,6 +108,20 @@ fun SettingsSheet(emu: Emu, onDismiss: () -> Unit) {
       Text("Desempenho", style = MaterialTheme.typography.titleMedium)
       Text("Velocidade: ${"%.2f".format(state.speed)}× tempo real · falhas de áudio: ${state.starvedPerSec}/s" +
         if (state.halted) " · CPU parada" else "")
+      state.audio?.let { a ->
+        val bufferMs = if (a.rate > 0) a.buffer * 1000f / a.rate else 0f
+        Text(
+          "Saída de áudio: ${a.rate} Hz · bloco de ${a.burst} quadros · buffer de ${a.buffer} (${"%.1f".format(bufferMs)} ms) · " +
+            (if (a.lowLatency) "modo de baixa latência" else "SEM modo de baixa latência") + " · estouros: ${a.xruns}",
+          style = MaterialTheme.typography.bodySmall,
+        )
+        Text(
+          "Atraso estimado: emulador ${"%.1f".format(state.lead * 1000f / 44_100f)} ms + saída do Android " +
+            (if (a.latencyUs >= 0) "%.1f".format(a.latencyUs / 1000f) else "?") + " ms" +
+            (if (a.ringMin >= 0) " · folga mínima da reserva: ${a.ringMin} quadros" else ""),
+          style = MaterialTheme.typography.bodySmall,
+        )
+      }
       state.suggestion?.let { lower ->
         Text("Seu aparelho não acompanha este firmware a ${state.mhz} MHz. Reduzir para $lower MHz?")
         Row2(
