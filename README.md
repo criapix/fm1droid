@@ -4,6 +4,9 @@ App Android que emula o sintetizador M-VAVE FM-1 em tela cheia, com painel tocá
 
 O núcleo de emulação é o [fm1-emu](https://github.com/joakimeriksson/fm1-emu) de Joakim Eriksson e colaboradores (licença MIT, submódulo em `vendor/fm1-emu`). Este projeto o embrulha num app Android.
 
+## Instalar
+Baixe o APK da [última release](https://github.com/criapix/fm1droid/releases/latest) no celular Android (8.0 ou mais novo, arm64) e abra o arquivo, permitindo a instalação de apps desta fonte. O `.sha256` ao lado serve para conferir o download. As releases são compiladas e assinadas pelo GitHub Actions (`.github/workflows/release.yml`).
+
 ## Firmwares
 Nenhum firmware vai dentro do APK (licenças diferentes, e o original é proprietário da M-VAVE). Pelo menu ⋮ → Firmwares você pode:
 - instalar pelo **catálogo** (lista do fm1-emu; o original é baixado do servidor da própria M-VAVE);
@@ -41,6 +44,9 @@ $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17..."
 Testes: `cd native\fm1droid; cargo test` (precisa de `.\tools\fetch-testfw.ps1` antes) e `.\gradlew.bat :app:testDebugUnitTest`.
 
 Release assinado: crie uma chave com `keytool` fora do repositório e defina em `local.properties` `release.keystore`, `release.storePassword`, `release.keyAlias`, `release.keyPassword`; depois `.\gradlew.bat :app:assembleRelease`.
+
+## Publicar uma release
+Suba `versionCode`/`versionName` em `app/build.gradle.kts`, faça commit e envie uma tag igual à versão: `git tag v0.2.0 && git push origin v0.2.0`. O workflow compila, assina e cria a release com o APK. Ele usa os secrets `RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` e `RELEASE_KEY_PASSWORD` do repositório. **Guarde uma cópia da keystore** (`~/.fm1droid-release/fm1droid-release.jks`): sem a mesma chave, quem já instalou não consegue atualizar. "Run workflow" no GitHub só compila e anexa o APK à execução, sem publicar.
 
 ## Avisos
 M-VAVE e FM-1 são marcas de seus titulares. Este app não é afiliado à M-VAVE.

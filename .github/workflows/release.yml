@@ -1,0 +1,109 @@
+name: Release
+
+# Push a tag "vX.Y.Z" (equal to versionName in app/build.gradle.kts) to build, sign and publish
+# the APK as a GitHub Release. "Run workflow" by hand only builds and attaches the APK to the run.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NDK_VERSION: 30.0.16248370
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Tag matches versionName
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          if [ "v$name" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match versionName $name"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/fm1droid
+
+      - name: cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Android NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}"
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "sdk.dir=$ANDROID_HOME"
+            echo "release.keystore=$RUNNER_TEMP/release.jks"
+            echo "release.storePassword=$STORE_PASSWORD"
+            echo "release.keyAlias=$KEY_ALIAS"
+            echo "release.keyPassword=$KEY_PASSWORD"
+          } > local.properties
+
+      - name: Unit tests and signed APK
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Name the APK and check its signature
+        id: apk
+        run: |
+          version=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          out="fm1droid-${version}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$out"
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$out" | head -3
+          sha256sum "$out" > "$out.sha256"
+          echo "file=$out" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.file }}
+          path: |
+            ${{ steps.apk.outputs.file }}
+            ${{ steps.apk.outputs.file }}.sha256
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILE: ${{ steps.apk.outputs.file }}
+        run: |
+          cat > notes.md <<'EOF'
+          ## Instalação
+          Baixe o `.apk` abaixo no celular Android (8.0 ou mais novo, arm64) e abra o arquivo; o Android vai pedir para permitir a instalação de apps desta fonte. O `.sha256` serve para conferir o download.
+
+          Nenhum firmware vai dentro do APK: importe o seu pelo menu ⋮ → Firmwares (veja o README).
+
+          ## Novidades
+          EOF
+          gh release create "$GITHUB_REF_NAME" "$FILE" "$FILE.sha256" \
+            --title "FM1 Droid ${GITHUB_REF_NAME#v}" \
+            --notes-file notes.md --generate-notes --verify-tag
