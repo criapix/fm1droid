@@ -61,13 +61,14 @@ jobs:
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | tr -d '
+ ' | base64 -d > "$RUNNER_TEMP/release.jks"
           {
             echo "sdk.dir=$ANDROID_HOME"
             echo "release.keystore=$RUNNER_TEMP/release.jks"
-            echo "release.storePassword=$STORE_PASSWORD"
-            echo "release.keyAlias=$KEY_ALIAS"
-            echo "release.keyPassword=$KEY_PASSWORD"
+            echo "release.storePassword=${STORE_PASSWORD%$''}"
+            echo "release.keyAlias=${KEY_ALIAS%$''}"
+            echo "release.keyPassword=${KEY_PASSWORD%$''}"
           } > local.properties
 
       - name: Unit tests and signed APK
