@@ -1,0 +1,24 @@
+[package]
+name = "fm1droid"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+fm1-core = { path = "../../vendor/fm1-emu/crates/fm1-core" }
+fm1-soc = { path = "../../vendor/fm1-emu/crates/fm1-soc" }
+rtrb = "0.3"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+
+[profile.release]
+opt-level = 3
+lto = true
+
+# os testes de máquina rodam emulação pesada: otimizar também em `cargo test`
+[profile.test]
+opt-level = 3
