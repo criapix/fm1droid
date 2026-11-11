@@ -13,6 +13,8 @@ object Native {
   external fun audioStart(): Int
   external fun audioStop()
   external fun audioLost(): Boolean
+  /** [rate, burst, buffer, performance mode (12 = low latency), underruns, output latency µs, least ring fill]; null with no stream. Call once a second: it also tunes the buffer. */
+  external fun audioInfo(): IntArray?
   external fun speed(): Float
   external fun starved(): Long
   /** bit 0: booted, bit 1: halted */

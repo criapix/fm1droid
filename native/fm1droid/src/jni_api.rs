@@ -70,6 +70,23 @@ pub extern "system" fn Java_com_criapix_fm1droid_Native_audioLost(_env: JNIEnv, 
     aaudio::LOST.load(Ordering::Relaxed) as jboolean
 }
 
+/// [rate, burst, buffer frames, performance mode, underruns, output latency (µs, -1 unknown),
+/// least ring fill since the last call (frames at 44.1 kHz, -1 unknown)]; null with no stream.
+/// Calling it is also the stream's tuning step: once a second.
+#[no_mangle]
+pub extern "system" fn Java_com_criapix_fm1droid_Native_audioInfo(env: JNIEnv, _c: JClass) -> jni::sys::jintArray {
+    let Some(info) = STREAM.lock().unwrap().as_mut().map(|s| s.info()) else { return std::ptr::null_mut() };
+    let least = app().shared.fill_min.swap(u32::MAX, Ordering::Relaxed);
+    let all = [info[0], info[1], info[2], info[3], info[4], info[5], if least == u32::MAX { -1 } else { least as jint }];
+    match env.new_int_array(all.len() as jint) {
+        Ok(a) => {
+            let _ = env.set_int_array_region(&a, 0, &all);
+            a.into_raw()
+        }
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 /// Emulated time over time spent emulating (>= 1.3 keeps up comfortably).
 #[no_mangle]
 pub extern "system" fn Java_com_criapix_fm1droid_Native_speed(_env: JNIEnv, _c: JClass) -> jfloat {

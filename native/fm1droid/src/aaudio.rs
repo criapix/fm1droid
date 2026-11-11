@@ -3,6 +3,7 @@
 use crate::app::{App, AudioSink};
 use crate::engine::{Shared, RATE};
 use crate::resample::Resampler;
+use crate::tune;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -27,9 +28,27 @@ extern "C" {
     fn AAudioStream_getSampleRate(s: *mut c_void) -> i32;
     fn AAudioStream_getFramesPerBurst(s: *mut c_void) -> i32;
     fn AAudioStream_setBufferSizeInFrames(s: *mut c_void, frames: i32) -> i32;
+    fn AAudioStream_getBufferSizeInFrames(s: *mut c_void) -> i32;
+    fn AAudioStream_getPerformanceMode(s: *mut c_void) -> i32;
+    fn AAudioStream_getXRunCount(s: *mut c_void) -> i32;
+    fn AAudioStream_getFramesWritten(s: *mut c_void) -> i64;
+    fn AAudioStream_getTimestamp(s: *mut c_void, clock: i32, frame: *mut i64, time_ns: *mut i64) -> i32;
     fn AAudioStream_requestStart(s: *mut c_void) -> i32;
     fn AAudioStream_requestStop(s: *mut c_void) -> i32;
     fn AAudioStream_close(s: *mut c_void) -> i32;
+}
+
+const CLOCK_MONOTONIC: i32 = 1;
+
+/// `struct timespec` of the 64-bit Android ABIs (the only ones this app ships).
+#[repr(C)]
+struct Timespec {
+    sec: i64,
+    nsec: i64,
+}
+
+extern "C" {
+    fn clock_gettime(clock: i32, ts: *mut Timespec) -> i32;
 }
 
 struct Ctx {
@@ -45,6 +64,10 @@ pub struct Stream {
     ctx: *mut Ctx,
     pub rate: i32,
     pub burst: i32,
+    /// frames of buffer in effect
+    buffer: i32,
+    /// underrun count at the last check
+    xruns: i32,
 }
 // SAFETY: the pointers are only used under the mutex that owns the Stream.
 unsafe impl Send for Stream {}
@@ -82,7 +105,10 @@ impl Stream {
                 return Err(format!("AAudio: open failed ({r})"));
             }
             let (rate, burst) = (AAudioStream_getSampleRate(raw), AAudioStream_getFramesPerBurst(raw));
-            AAudioStream_setBufferSizeInFrames(raw, burst * 2);
+            // one burst: the callback only copies from the ring, so it is never late on its own;
+            // `info` adds a burst whenever the device reports an underrun
+            let set = AAudioStream_setBufferSizeInFrames(raw, burst);
+            let buffer = if set > 0 { set } else { AAudioStream_getBufferSizeInFrames(raw) };
             sink.lock().unwrap().rs = Resampler::new(RATE, rate as u32);
             LOST.store(false, Ordering::Relaxed);
             let r = AAudioStream_requestStart(raw);
@@ -91,7 +117,36 @@ impl Stream {
                 drop(Box::from_raw(ctx));
                 return Err(format!("AAudio: start failed ({r})"));
             }
-            Ok(Stream { raw, ctx, rate, burst })
+            Ok(Stream { raw, ctx, rate, burst, buffer, xruns: 0 })
+        }
+    }
+
+    /// [rate, burst, buffer frames, performance mode (12 = low latency), underruns so far,
+    /// output latency in microseconds or -1 when the device gives no timestamp yet].
+    /// Also the tuning step: call it about once a second.
+    pub fn info(&mut self) -> [i32; 6] {
+        unsafe {
+            let xruns = AAudioStream_getXRunCount(self.raw).max(0);
+            let want = tune::next_buffer(self.burst, self.buffer, xruns - self.xruns);
+            self.xruns = xruns;
+            if want != self.buffer {
+                let set = AAudioStream_setBufferSizeInFrames(self.raw, want);
+                if set > 0 {
+                    self.buffer = set;
+                }
+            }
+            let (mut frame, mut at) = (0i64, 0i64);
+            let mut now = Timespec { sec: 0, nsec: 0 };
+            let latency = if AAudioStream_getTimestamp(self.raw, CLOCK_MONOTONIC, &mut frame, &mut at) == 0
+                && clock_gettime(CLOCK_MONOTONIC, &mut now) == 0
+            {
+                let now_ns = now.sec * 1_000_000_000 + now.nsec;
+                tune::latency_us(AAudioStream_getFramesWritten(self.raw), frame, at, now_ns, self.rate)
+                    .clamp(0, i32::MAX as i64) as i32
+            } else {
+                -1
+            };
+            [self.rate, self.burst, self.buffer, AAudioStream_getPerformanceMode(self.raw), xruns, latency]
         }
     }
 }
