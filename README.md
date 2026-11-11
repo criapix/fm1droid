@@ -4,6 +4,28 @@ App Android que emula o sintetizador M-VAVE FM-1 em tela cheia, com painel tocá
 
 O núcleo de emulação é o [fm1-emu](https://github.com/joakimeriksson/fm1-emu) de Joakim Eriksson e colaboradores (licença MIT, submódulo em `vendor/fm1-emu`). Este projeto o embrulha num app Android.
 
+<p align="center">
+  <img src="docs/screenshots/painel.png" alt="Painel do FM-1 em tela cheia no app, com LCD, knobs, botões e teclado multitoque" width="100%">
+</p>
+
+## Capturas de tela
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/firmwares.png" alt="Catálogo de firmwares: firmware original da M-VAVE e firmwares da comunidade"></td>
+    <td width="50%"><img src="docs/screenshots/controle-midi.png" alt="Controle MIDI: associação de knobs, sliders e botões do teclado aos controles do painel"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Catálogo de firmwares</b><br>o original da M-VAVE e os da comunidade, com um toque</td>
+    <td align="center"><b>Controle MIDI</b><br>aprenda knobs, sliders e botões do seu teclado</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/screenshots/configuracoes.png" alt="Configurações: clock da CPU emulada e latência de áudio" width="50%"><br><b>Configurações</b><br>clock da CPU emulada e latência de áudio</td>
+  </tr>
+</table>
+
+_Capturas feitas no emulador Android, com o firmware comunitário Felucca; num aparelho real o som e a fluidez são os do celular._
+
 ## Instalar
 Baixe o APK da [última release](https://github.com/criapix/fm1droid/releases/latest) no celular Android (8.0 ou mais novo, arm64) e abra o arquivo, permitindo a instalação de apps desta fonte. O `.sha256` ao lado serve para conferir o download. As releases são compiladas e assinadas pelo GitHub Actions (`.github/workflows/release.yml`).
 
