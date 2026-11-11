@@ -16,3 +16,4 @@ mod smoke {
 
 pub mod resample;
 pub mod flashrec;
+pub mod engine;
