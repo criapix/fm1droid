@@ -1,0 +1,8 @@
+target/
+native/fm1droid/testdata/
+app/src/main/jniLibs/
+app/src/androidTest/assets/
+.gradle/
+build/
+local.properties
+*.jks
