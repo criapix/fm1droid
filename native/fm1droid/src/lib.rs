@@ -13,3 +13,5 @@ mod smoke {
         assert_eq!(fm1_soc::FLASH_SIZE % 4096, 0);
     }
 }
+
+pub mod resample;
